@@ -73,9 +73,6 @@
   .task-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border); padding: 16px 18px; cursor: pointer; transition: all 0.15s; }
   .task-card:hover { background: var(--surface2); }
   .task-card.overdue { border-left-color: var(--red); background: #150a0a; }
-  .task-card.critical { border-left-color: #ff0000; background: #1f0000; border-left-width: 5px; }
-  body.light-mode .task-card.critical { background: #ffc9c9; }
-  .tag-critical { background: #3a0000; color: #ff4444; border: 1px solid #ff0000; }
   .task-card.due-soon { border-left-color: var(--yellow); background: #110f06; }
   .task-card.ok { border-left-color: var(--green); }
   .task-card.never-done { border-left-color: var(--orange); background: #110a04; }
@@ -197,6 +194,7 @@
   <button class="tab" onclick="setTab('by-date')" id="tab-by-date">By Due Date</button>
   <button class="tab" onclick="setTab('history')" id="tab-history">History</button>
   <button class="tab" onclick="setTab('manage')" id="tab-manage">⚙ Manage PMs</button>
+  <button class="tab" onclick="setTab('machines')" id="tab-machines">🏭 Machines</button>
   <button class="tab" onclick="setTab('data')" id="tab-data">💾 Backup</button>
   <button id="tab-ok" style="display:none"></button>
   <button id="tab-pending" style="display:none"></button>
@@ -317,6 +315,8 @@
   </div>
 </div>
 
+<div id="machinesPanel" style="display:none;"></div>
+
 <div class="add-pm-overlay" id="addPMOverlay" onclick="handleAddPMClick(event)">
   <div class="add-pm-sheet">
     <div class="add-pm-header">
@@ -338,6 +338,21 @@
       <div class="freq-preview" id="pmPreview">→ Repeats every 30 days</div>
       <input type="hidden" id="pmEditId">
       <button onclick="saveCustomPM()" style="width:100%;background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-size:1.2rem;font-weight:700;letter-spacing:2px;padding:12px;cursor:pointer;">✓ SAVE TASK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Rename Machine Modal -->
+<div id="addMachineOverlay" onclick="if(event.target===this)closeAddMachineModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:400;align-items:flex-end;justify-content:center;">
+  <div style="background:var(--surface);border-top:2px solid var(--orange);width:100%;max-width:600px;animation:slideUp 0.25s ease;">
+    <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;letter-spacing:1px;" id="addMachineModalTitle">ADD NEW MACHINE</div>
+      <button onclick="closeAddMachineModal()" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:32px;height:32px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <div style="padding:16px;">
+      <div class="form-row"><label>Machine Name</label><input type="text" id="addMachineName" maxlength="40" placeholder="e.g. Mustang 1 or MOPM3"></div>
+      <input type="hidden" id="addMachineEditId">
+      <button onclick="saveAddMachine()" style="width:100%;background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-size:1.2rem;font-weight:700;letter-spacing:2px;padding:12px;cursor:pointer;margin-top:4px;">✓ SAVE MACHINE</button>
     </div>
   </div>
 </div>
@@ -407,10 +422,21 @@ const db = getFirestore(fbApp);
 
 window._cloudSaveFn = async (deviceId, data) => {
   const ref = doc(db, "devices", deviceId);
-  const notes = JSON.parse(localStorage.getItem('mustangpm_notes') || '{}');
-  const custom = JSON.parse(localStorage.getItem('mustangpm_custom') || '[]');
-  const machineName = localStorage.getItem('mustangpm_machinename') || '';
-  await setDoc(ref, { state: JSON.stringify(data), notes: JSON.stringify(notes), custom: JSON.stringify(custom), machineName, updatedAt: new Date().toISOString() });
+  const machinesArr = JSON.parse(localStorage.getItem('mustangpm_machines') || '[]');
+  const machinesData = {};
+  machinesArr.forEach(m => {
+    machinesData[m.id] = {
+      state: localStorage.getItem('mustangpm_state_' + m.id) || '{}',
+      custom: localStorage.getItem('mustangpm_custom_' + m.id) || '[]',
+      notes: localStorage.getItem('mustangpm_notes_' + m.id) || '{}'
+    };
+  });
+  await setDoc(ref, {
+    machines: localStorage.getItem('mustangpm_machines') || '[]',
+    currentMachine: localStorage.getItem('mustangpm_current_machine') || '',
+    machinesData: JSON.stringify(machinesData),
+    updatedAt: new Date().toISOString()
+  });
 };
 
 window._cloudLoadFn = async (deviceId) => {
@@ -418,10 +444,24 @@ window._cloudLoadFn = async (deviceId) => {
   const snap = await getDoc(ref);
   if (snap.exists()) {
     const d = snap.data();
-    if (d.notes) localStorage.setItem('mustangpm_notes', d.notes);
-    if (d.custom) localStorage.setItem('mustangpm_custom', d.custom);
-    if (d.machineName) localStorage.setItem('mustangpm_machinename', d.machineName);
-    return JSON.parse(d.state);
+    if (d.machines) {
+      localStorage.setItem('mustangpm_machines', d.machines);
+      const machinesArr = JSON.parse(d.machines);
+      if (d.currentMachine) localStorage.setItem('mustangpm_current_machine', d.currentMachine);
+      if (d.machinesData) {
+        const md = JSON.parse(d.machinesData);
+        machinesArr.forEach(m => {
+          if (md[m.id]) {
+            localStorage.setItem('mustangpm_state_' + m.id, md[m.id].state || '{}');
+            localStorage.setItem('mustangpm_custom_' + m.id, md[m.id].custom || '[]');
+            localStorage.setItem('mustangpm_notes_' + m.id, md[m.id].notes || '{}');
+          }
+        });
+      }
+      const mid = d.currentMachine || machinesArr[0]?.id || '';
+      return JSON.parse(localStorage.getItem('mustangpm_state_' + mid) || '{}');
+    }
+    return null;
   }
   return null;
 };
@@ -452,8 +492,38 @@ const TASKS_DEFAULT = [
   { id: 19, name: "Check Bushings to Ensure Belt Pulleys Have Not Moved on Mechanical Pumps", freq: "1y", freqLabel: "1 Year" },
 ];
 
-function loadState() { try { const r = localStorage.getItem('mustangpm_state'); return r ? JSON.parse(r) : {}; } catch(e) { return {}; } }
-function saveState(s) { localStorage.setItem('mustangpm_state', JSON.stringify(s)); }
+// ── Machine registry (initialized before loadState is called) ──
+let machines = [];
+let currentMachineId = '';
+(function() {
+  const stored = localStorage.getItem('mustangpm_machines');
+  if (stored) {
+    try {
+      machines = JSON.parse(stored);
+      currentMachineId = localStorage.getItem('mustangpm_current_machine') || machines[0]?.id || '';
+    } catch(e) {}
+  }
+  if (!machines.length) {
+    const existingName = localStorage.getItem('mustangpm_machinename') || 'Machine 1';
+    const defaultId = 'm_' + Date.now();
+    machines = [{ id: defaultId, name: existingName }];
+    currentMachineId = defaultId;
+    const es = localStorage.getItem('mustangpm_state');
+    const ec = localStorage.getItem('mustangpm_custom');
+    const en = localStorage.getItem('mustangpm_notes');
+    if (es) localStorage.setItem('mustangpm_state_' + defaultId, es);
+    if (ec) localStorage.setItem('mustangpm_custom_' + defaultId, ec);
+    if (en) localStorage.setItem('mustangpm_notes_' + defaultId, en);
+    localStorage.setItem('mustangpm_machines', JSON.stringify(machines));
+    localStorage.setItem('mustangpm_current_machine', currentMachineId);
+  }
+})();
+
+function saveMachineList() { localStorage.setItem('mustangpm_machines', JSON.stringify(machines)); }
+function getCurrentMachine() { return machines.find(m => m.id === currentMachineId) || machines[0]; }
+
+function loadState() { try { const r = localStorage.getItem('mustangpm_state_' + currentMachineId); return r ? JSON.parse(r) : {}; } catch(e) { return {}; } }
+function saveState(s) { localStorage.setItem('mustangpm_state_' + currentMachineId, JSON.stringify(s)); }
 
 function generateUniqueId() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -484,13 +554,14 @@ function setSyncStatus(type, label) {
 }
 
 function initDeviceBar() {
-  const name = localStorage.getItem('mustangpm_machinename') || '';
-  document.getElementById('machineNameDisplay').textContent = name || 'TAP TO NAME ✎';
+  const m = getCurrentMachine();
+  document.getElementById('machineNameDisplay').textContent = m?.name || 'TAP TO NAME ✎';
   setSyncStatus('synced', 'READY');
 }
 
 function editMachineName() {
-  document.getElementById('machineNameInput').value = localStorage.getItem('mustangpm_machinename') || '';
+  const m = getCurrentMachine();
+  document.getElementById('machineNameInput').value = m?.name || '';
   document.getElementById('nameModalOverlay').style.display = 'flex';
   setTimeout(() => document.getElementById('machineNameInput').focus(), 100);
 }
@@ -498,7 +569,8 @@ function editMachineName() {
 function saveMachineName() {
   const val = document.getElementById('machineNameInput').value.trim();
   if (!val) { showToast('Please enter a machine name', 'error'); return; }
-  localStorage.setItem('mustangpm_machinename', val);
+  const m = getCurrentMachine();
+  if (m) { m.name = val; saveMachineList(); }
   document.getElementById('machineNameDisplay').textContent = val;
   document.getElementById('nameModalOverlay').style.display = 'none';
   showToast('✓ Machine name saved', 'success');
@@ -546,7 +618,15 @@ async function cloudLoad() {
   try {
     const data = await window._cloudLoadFn(deviceId);
     if (!data) { showToast('No cloud data found for: ' + deviceId, 'error'); setSyncStatus('offline', 'NO DATA'); return; }
-    state = data; saveState(state);
+    // Reload machine registry and state after cloud load
+    const storedMachines = localStorage.getItem('mustangpm_machines');
+    if (storedMachines) {
+      machines = JSON.parse(storedMachines);
+      currentMachineId = localStorage.getItem('mustangpm_current_machine') || machines[0]?.id || '';
+    }
+    state = loadState();
+    customTasks = loadCustomTasks();
+    initDeviceBar();
     setSyncStatus('synced', 'LOADED ✓');
     showToast('✓ Data loaded from cloud', 'success');
     renderAll();
@@ -568,7 +648,15 @@ async function autoSave() {
 }
 
 function exportData() {
-  const blob = new Blob([JSON.stringify({ deviceId, exportedAt: new Date().toISOString(), state }, null, 2)], { type: 'application/json' });
+  const machinesData = {};
+  machines.forEach(m => {
+    machinesData[m.id] = {
+      state: localStorage.getItem('mustangpm_state_' + m.id) || '{}',
+      custom: localStorage.getItem('mustangpm_custom_' + m.id) || '[]',
+      notes: localStorage.getItem('mustangpm_notes_' + m.id) || '{}'
+    };
+  });
+  const blob = new Blob([JSON.stringify({ deviceId, exportedAt: new Date().toISOString(), machines, currentMachine: currentMachineId, machinesData }, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = `mustang-pm-backup-${deviceId||'device'}-${today()}.json`; a.click();
@@ -582,8 +670,23 @@ function importData(event) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if (!data.state) { showToast('Invalid backup file', 'error'); return; }
-      state = data.state; saveState(state);
+      if (data.machines && data.machinesData) {
+        machines = data.machines;
+        saveMachineList();
+        currentMachineId = data.currentMachine || data.machines[0]?.id || '';
+        localStorage.setItem('mustangpm_current_machine', currentMachineId);
+        data.machines.forEach(m => {
+          const md = data.machinesData[m.id];
+          if (md) {
+            if (md.state) localStorage.setItem('mustangpm_state_' + m.id, md.state);
+            if (md.custom) localStorage.setItem('mustangpm_custom_' + m.id, md.custom);
+            if (md.notes) localStorage.setItem('mustangpm_notes_' + m.id, md.notes);
+          }
+        });
+        state = loadState(); customTasks = loadCustomTasks(); initDeviceBar();
+      } else if (data.state) {
+        state = data.state; saveState(state);
+      } else { showToast('Invalid backup file', 'error'); return; }
       showToast('✓ Data restored from backup', 'success'); renderAll();
     } catch(err) { showToast('Failed to read file', 'error'); }
   };
@@ -639,10 +742,12 @@ function renderAll() {
   document.getElementById('historyList').style.display = 'none';
   document.getElementById('dataPanel').style.display = 'none';
   document.getElementById('managePanel').style.display = 'none';
+  document.getElementById('machinesPanel').style.display = 'none';
   document.getElementById('techFilterBar').style.display = 'none';
   if (currentTab === 'history') { renderHistory(); return; }
   if (currentTab === 'data') { document.getElementById('dataPanel').style.display = 'block'; return; }
   if (currentTab === 'manage') { document.getElementById('managePanel').style.display = 'block'; renderManagePanel(); return; }
+  if (currentTab === 'machines') { document.getElementById('machinesPanel').style.display = 'block'; renderMachinesPanel(); return; }
 
   const taskList = document.getElementById('taskList');
   taskList.style.display = '';
@@ -679,7 +784,6 @@ function renderAll() {
     const status = getStatus(task); const ts = state[task.id]; const histCount = ts?.history?.length || 0;
     const lastTech = ts?.history?.length ? ts.history[ts.history.length-1].tech : '';
     const taskNote = getTaskNote(task.id);
-    const isCritical = status === 'overdue' && ts?.nextDue && Math.abs(daysDiff(ts.nextDue)) >= freqTotalDays(task.freq);
     let dueText = '', dueClass = '', tagHtml = '';
     if (status === 'pending') { dueText = 'Never completed — needs initial service'; dueClass = 'orange'; tagHtml = '<span class="task-status-tag tag-pending">PENDING</span>'; }
     else {
@@ -687,18 +791,17 @@ function renderAll() {
       if (status === 'overdue') {
         dueText = `OVERDUE by ${Math.abs(diff)} day${Math.abs(diff)===1?'':'s'} — was due ${formatDate(ts.nextDue)}`;
         dueClass = 'red';
-        tagHtml = isCritical ? '<span class="task-status-tag tag-critical">⚠ CRITICAL</span>' : '<span class="task-status-tag tag-overdue">OVERDUE</span>';
+        tagHtml = '<span class="task-status-tag tag-overdue">OVERDUE</span>';
       }
       else if (status === 'due-soon') { dueText = diff === 0 ? `Due TODAY — ${formatDate(ts.nextDue)}` : `Due in ${diff} day${diff===1?'':'s'} — ${formatDate(ts.nextDue)}`; dueClass = 'yellow'; tagHtml = '<span class="task-status-tag tag-soon">DUE SOON</span>'; }
       else { dueText = `Next due: ${formatDate(ts.nextDue)} (in ${diff} days)`; dueClass = 'green'; tagHtml = '<span class="task-status-tag tag-ok">ON TRACK</span>'; }
     }
 
-    const ablogOverdue = status === 'overdue' ? `<div style="margin-top:8px;background:#3a0000;border:2px solid #ff0000;padding:8px 10px;font-family:var(--font-mono);font-size:0.92rem;color:#ff4444;line-height:1.5;">🚨 Document in the Ablog immediately per NAL policy and complete PM ASAP.</div>` : '';
-    const ablogSoon = (status === 'due-soon' && daysDiff(ts?.nextDue) <= 2) ? `<div style="margin-top:8px;background:var(--yellow-dim);border:1px solid var(--yellow);padding:6px 10px;font-family:var(--font-mono);font-size:0.88rem;color:var(--yellow);line-height:1.5;">⚠ Due within 2 days — if not completed on time, document in the Ablog per NAL policy.</div>` : '';
+    const overdueNote = status === 'overdue' ? `<div style="margin-top:8px;background:var(--red-dim);border:1px solid var(--red);padding:6px 10px;font-family:var(--font-mono);font-size:0.88rem;color:var(--red);">⚠ OVERDUE — Complete this PM as soon as possible.</div>` : '';
 
     const card = document.createElement('div');
-    card.className = `task-card ${isCritical ? 'critical' : (status === 'pending' ? 'never-done' : status)}`;
-    card.innerHTML = `<div class="task-top"><div class="task-name">${task.name}</div><div class="task-freq">${task.freqLabel}</div></div><div class="task-bottom"><div><div class="history-count">${histCount > 0 ? `${histCount} completion${histCount===1?'':'s'} logged` : 'No history yet'}</div>${lastTech ? `<div class="last-tech">Last: ${lastTech}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${taskNote ? `<div class="task-note-badge">📌 ${taskNote}</div>` : ''}</div>${tagHtml}</div>${ablogOverdue}${ablogSoon}`;
+    card.className = `task-card ${status === 'pending' ? 'never-done' : status}`;
+    card.innerHTML = `<div class="task-top"><div class="task-name">${task.name}</div><div class="task-freq">${task.freqLabel}</div></div><div class="task-bottom"><div><div class="history-count">${histCount > 0 ? `${histCount} completion${histCount===1?'':'s'} logged` : 'No history yet'}</div>${lastTech ? `<div class="last-tech">Last: ${lastTech}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${taskNote ? `<div class="task-note-badge">📌 ${taskNote}</div>` : ''}</div>${tagHtml}</div>${overdueNote}`;
     card.onclick = () => openModal(task.id);
     taskList.appendChild(card);
   });
@@ -795,8 +898,8 @@ function logCompletion() {
 
 
 // ── Custom PM Tasks ───────────────────────────────────────────
-function loadCustomTasks() { try { const r = localStorage.getItem('mustangpm_custom'); return r ? JSON.parse(r) : []; } catch(e) { return []; } }
-function saveCustomTasks() { localStorage.setItem('mustangpm_custom', JSON.stringify(customTasks)); }
+function loadCustomTasks() { try { const r = localStorage.getItem('mustangpm_custom_' + currentMachineId); return r ? JSON.parse(r) : []; } catch(e) { return []; } }
+function saveCustomTasks() { localStorage.setItem('mustangpm_custom_' + currentMachineId, JSON.stringify(customTasks)); }
 let customTasks = loadCustomTasks();
 
 function getAllTasks() { return [...TASKS_DEFAULT, ...customTasks]; }
@@ -951,8 +1054,8 @@ function resetUpdateBtn() {
 }
 
 // ── Task Notes ────────────────────────────────────────────────
-function loadTaskNotes() { try { return JSON.parse(localStorage.getItem('mustangpm_notes') || '{}'); } catch(e) { return {}; } }
-function saveTaskNotes(n) { localStorage.setItem('mustangpm_notes', JSON.stringify(n)); }
+function loadTaskNotes() { try { return JSON.parse(localStorage.getItem('mustangpm_notes_' + currentMachineId) || '{}'); } catch(e) { return {}; } }
+function saveTaskNotes(n) { localStorage.setItem('mustangpm_notes_' + currentMachineId, JSON.stringify(n)); }
 function getTaskNote(taskId) { return loadTaskNotes()[taskId] || ''; }
 function loadTaskNote() {
   const id = document.getElementById('noteTaskSelect').value;
@@ -1004,6 +1107,115 @@ function saveEditComp() {
   autoSave();
 }
 
+// ── Machine Management ─────────────────────────────────────────
+function switchMachine(machineId) {
+  currentMachineId = machineId;
+  localStorage.setItem('mustangpm_current_machine', machineId);
+  state = loadState();
+  customTasks = loadCustomTasks();
+  const m = getCurrentMachine();
+  document.getElementById('machineNameDisplay').textContent = m?.name || 'UNNAMED';
+  setTab('all');
+  showToast('✓ Switched to ' + (m?.name || 'machine'), 'success');
+}
+
+function renameMachineById(machineId, newName) {
+  const m = machines.find(m => m.id === machineId);
+  if (m) {
+    m.name = newName;
+    saveMachineList();
+    if (machineId === currentMachineId) {
+      document.getElementById('machineNameDisplay').textContent = newName;
+    }
+  }
+}
+
+function deleteMachineById(machineId) {
+  if (machines.length <= 1) { showToast('Cannot delete the only machine', 'error'); return; }
+  const m = machines.find(m => m.id === machineId);
+  if (!confirm('Delete "' + (m?.name || 'this machine') + '" and ALL its PM data? This cannot be undone.')) return;
+  localStorage.removeItem('mustangpm_state_' + machineId);
+  localStorage.removeItem('mustangpm_custom_' + machineId);
+  localStorage.removeItem('mustangpm_notes_' + machineId);
+  machines = machines.filter(m => m.id !== machineId);
+  saveMachineList();
+  if (currentMachineId === machineId) {
+    switchMachine(machines[0].id);
+  } else {
+    renderMachinesPanel();
+  }
+  showToast('Machine deleted', 'success');
+  autoSave();
+}
+
+function openAddMachineModal() {
+  document.getElementById('addMachineModalTitle').textContent = 'ADD NEW MACHINE';
+  document.getElementById('addMachineName').value = '';
+  document.getElementById('addMachineEditId').value = '';
+  document.getElementById('addMachineOverlay').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('addMachineName').focus(), 100);
+}
+
+function openRenameMachineModal(machineId) {
+  const m = machines.find(m => m.id === machineId);
+  document.getElementById('addMachineModalTitle').textContent = 'RENAME MACHINE';
+  document.getElementById('addMachineName').value = m?.name || '';
+  document.getElementById('addMachineEditId').value = machineId;
+  document.getElementById('addMachineOverlay').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('addMachineName').focus(), 100);
+}
+
+function closeAddMachineModal() {
+  document.getElementById('addMachineOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function saveAddMachine() {
+  const name = document.getElementById('addMachineName').value.trim();
+  if (!name) { showToast('Please enter a machine name', 'error'); return; }
+  const editId = document.getElementById('addMachineEditId').value;
+  if (editId) {
+    renameMachineById(editId, name);
+    showToast('✓ Machine renamed to ' + name, 'success');
+  } else {
+    const newId = 'm_' + Date.now();
+    machines.push({ id: newId, name });
+    saveMachineList();
+    showToast('✓ Machine added — tap SELECT to switch to it', 'success');
+  }
+  closeAddMachineModal();
+  renderMachinesPanel();
+  autoSave();
+}
+
+function renderMachinesPanel() {
+  const panel = document.getElementById('machinesPanel');
+  panel.innerHTML = `
+    <div class="manage-panel">
+      <div class="manage-section">
+        <div class="manage-section-title">All Machines</div>
+        <button onclick="openAddMachineModal()" style="width:100%;background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-size:1.1rem;font-weight:700;letter-spacing:1px;padding:11px;cursor:pointer;margin-bottom:12px;">➕ ADD NEW MACHINE</button>
+        ${machines.map(m => `
+          <div class="custom-task-item" style="${m.id === currentMachineId ? 'border-left-color:var(--green);background:var(--green-dim);' : ''}">
+            <div class="custom-task-info">
+              <div class="custom-task-name">${m.name}</div>
+              <div class="custom-task-freq" style="${m.id === currentMachineId ? 'color:var(--green);' : ''}">
+                ${m.id === currentMachineId ? '● ACTIVE' : 'Tap SELECT to switch'}
+              </div>
+            </div>
+            <div class="custom-task-btns">
+              ${m.id !== currentMachineId ? `<button class="btn-edit" onclick="switchMachine('${m.id}')">SELECT</button>` : ''}
+              <button class="btn-edit" onclick="openRenameMachineModal('${m.id}')">RENAME</button>
+              ${machines.length > 1 ? `<button class="btn-del" onclick="deleteMachineById('${m.id}')">DEL</button>` : ''}
+            </div>
+          </div>`).join('')}
+        <div style="font-family:var(--font-mono);font-size:0.88rem;color:var(--text-dim);margin-top:8px;">Each machine has its own PM tasks and completion history.</div>
+      </div>
+    </div>`;
+}
+
 // ── PDF Export ────────────────────────────────────────────────
 function exportPDF() {
   const machineName = localStorage.getItem('mustangpm_machinename') || 'Unknown Machine';
@@ -1047,6 +1259,12 @@ function shareApp() {
 window.shareApp = shareApp;
 
 window.checkForUpdate = checkForUpdate;
+window.switchMachine = switchMachine;
+window.openAddMachineModal = openAddMachineModal;
+window.openRenameMachineModal = openRenameMachineModal;
+window.closeAddMachineModal = closeAddMachineModal;
+window.saveAddMachine = saveAddMachine;
+window.deleteMachineById = deleteMachineById;
 window.setTab = setTab;
 window.setDeviceId = setDeviceId;
 window.cloudSave = cloudSave;
