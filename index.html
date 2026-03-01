@@ -1449,4 +1449,14 @@ window.dismissInstallPrompt = dismissInstallPrompt;
 // ── INIT ─────────────────────────────────────────────────────
 document.getElementById('completionDate').value = today();
 if (localStorage.getItem('mustangpm_lightmode') === '1') {
-  document.body.cl
+  document.body.classList.add('light-mode');
+  document.getElementById('lightToggleBtn').textContent = '🌙';
+}
+applyFontSize(_currentFont);
+setSyncStatus('offline', 'OFFLINE');
+initFirebase();
+renderAll();
+setTimeout(() => showInstallPrompt(), 3000);
+</script>
+</body>
+</html>
