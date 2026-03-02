@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1e3a5f">
+<title>PM Supervisor Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --bg: #0a0d10;
+  --surface: #111418;
+  --surface2: #181c21;
+  --border: #252a30;
+  --blue: #3b82f6;
+  --blue-dim: #1e3a5f;
+  --red: #ef4444;
+  --red-dim: #3b0a0a;
+  --yellow: #eab308;
+  --yellow-dim: #3b2a00;
+  --green: #22c55e;
+  --green-dim: #052e16;
+  --orange: #f97316;
+  --orange-dim: #3b1a00;
+  --text: #e2e8f0;
+  --text-dim: #64748b;
+  --text-mid: #94a3b8;
+  --font-display: 'Rajdhani', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-body: 'Barlow', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; }
+
+/* ── PIN GATE ── */
+#pinGate {
+  position: fixed; inset: 0; z-index: 99999;
+  background: linear-gradient(135deg, #0a0d10 0%, #1e3a5f 100%);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+#pinGate.hidden { display: none; }
+.pin-card {
+  background: #111418; border: 1px solid #252a30;
+  border-radius: 4px; padding: 40px 32px 36px;
+  max-width: 360px; width: 100%; text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.pin-card h2 {
+  font-family: var(--font-display); font-size: 22px; font-weight: 700;
+  color: var(--blue); letter-spacing: 3px; margin-bottom: 4px;
+}
+.pin-card p { font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); margin-bottom: 28px; }
+.pin-dots { display: flex; justify-content: center; gap: 12px; margin-bottom: 28px; }
+.pin-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--border); background: var(--surface2); transition: all 0.15s;
+}
+.pin-dot.filled { background: var(--blue); border-color: var(--blue); }
+.pin-dot.error { background: var(--red); border-color: var(--red); }
+.pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.pin-key {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 14px 8px;
+  font-family: var(--font-display); font-size: 20px; font-weight: 700;
+  color: var(--text); cursor: pointer; transition: all 0.12s; user-select: none;
+}
+.pin-key:hover { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+.pin-key:active { transform: scale(0.93); }
+.pin-key.del { font-size: 14px; color: var(--text-dim); }
+.pin-key.del:hover { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+.pin-status { font-family: var(--font-mono); font-size: 12px; min-height: 18px; color: var(--red); margin-top: 6px; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--surface); border-bottom: 2px solid var(--blue);
+  padding: 0 20px; display: flex; align-items: center;
+  justify-content: space-between; min-height: 60px; position: sticky; top: 0; z-index: 100;
+}
+.logo { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.6rem); font-weight: 700; letter-spacing: 2px; color: var(--blue); }
+.logo span { color: var(--text-dim); font-weight: 400; font-size: 0.7em; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+.sync-dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+.sync-dot.error { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.last-refresh { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.refresh-btn {
+  background: none; border: 1px solid var(--border); color: var(--text-dim);
+  padding: 5px 10px; cursor: pointer; font-family: var(--font-mono); font-size: 12px;
+  transition: all 0.15s;
+}
+.refresh-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+/* ── STAT BAR ── */
+.stat-bar {
+  background: var(--surface2); border-bottom: 1px solid var(--border);
+  padding: 12px 20px; display: flex; gap: 12px; flex-wrap: nowrap; overflow-x: auto;
+}
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; padding: 10px 18px; text-align: center; flex: 1; min-width: 70px; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.stat-card:hover { border-color: var(--blue); }
+.stat-card.active { border-color: var(--blue); }
+.stat-val { font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1; }
+.stat-val.red { color: var(--red); }
+.stat-val.yellow { color: var(--yellow); }
+.stat-val.green { color: var(--green); }
+.stat-val.blue { color: var(--blue); }
+.stat-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); margin-top: 2px; letter-spacing: 1px; }
+
+/* ── FILTERS ── */
+.filter-bar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 10px 20px; display: flex; gap: 8px; flex-wrap: nowrap; align-items: center; overflow-x: auto;
+}
+.filter-bar select, .filter-bar input {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 8px; font-family: var(--font-mono); font-size: 12px; outline: none;
+  transition: border-color 0.15s; min-width: 0; flex: 1;
+}
+.filter-bar select:focus, .filter-bar input:focus { border-color: var(--blue); }
+.filter-label { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.notif-btn {
+  background: var(--blue-dim); border: 1px solid var(--blue); color: var(--blue);
+  padding: 6px 14px; cursor: pointer; font-family: var(--font-mono); font-size: 12px;
+  transition: all 0.15s; margin-left: auto;
+}
+.notif-btn:hover { background: var(--blue); color: #000; }
+.notif-btn.active { background: var(--blue); color: #000; }
+
+/* ── TABS ── */
+.tabs {
+  background: var(--surface2); border-bottom: 1px solid var(--border);
+  padding: 0 20px; display: flex; gap: 0;
+}
+.tab {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-dim); font-family: var(--font-display); font-size: 14px;
+  font-weight: 600; letter-spacing: 1px; padding: 12px 18px; cursor: pointer;
+  transition: all 0.15s; text-transform: uppercase;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.tab-badge {
+  background: var(--red); color: #fff; font-size: 10px; font-weight: 700;
+  padding: 1px 5px; border-radius: 2px; margin-left: 5px; vertical-align: middle;
+}
+
+/* ── CONTENT ── */
+.content { padding: 16px 20px; max-width: 1200px; margin: 0 auto; }
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── PM CARDS ── */
+.pm-grid { display: flex; flex-direction: column; gap: 8px; }
+.pm-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--border); border-radius: 2px; padding: 12px 14px;
+  transition: border-color 0.15s;
+}
+.pm-card.overdue { border-left-color: var(--red); background: #150a0a; }
+.pm-card.due-soon { border-left-color: var(--yellow); background: #1a1500; }
+.pm-card.ok { border-left-color: var(--green); }
+.pm-card.pending { border-left-color: var(--orange); }
+.pm-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.pm-name { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--text); }
+.pm-machine { font-family: var(--font-mono); font-size: 11px; color: var(--blue); margin-top: 2px; }
+.pm-freq { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.pm-bottom { display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+.pm-due { font-family: var(--font-mono); font-size: 12px; }
+.pm-due.red { color: var(--red); }
+.pm-due.yellow { color: var(--yellow); }
+.pm-due.green { color: var(--green); }
+.pm-due.orange { color: var(--orange); }
+.pm-tech { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.status-tag {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; padding: 2px 7px; border-radius: 2px;
+}
+.tag-overdue { background: var(--red-dim); color: var(--red); }
+.tag-soon { background: var(--yellow-dim); color: var(--yellow); }
+.tag-ok { background: var(--green-dim); color: var(--green); }
+.tag-pending { background: var(--orange-dim); color: var(--orange); }
+
+/* ── HISTORY ENTRIES ── */
+.history-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 2px solid var(--green); padding: 10px 14px; margin-bottom: 6px;
+}
+.history-item-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.history-date { font-family: var(--font-mono); font-size: 12px; color: var(--green); }
+.history-task { font-family: var(--font-display); font-size: 14px; font-weight: 600; margin: 2px 0; }
+.history-meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.history-notes-text { font-family: var(--font-mono); font-size: 11px; color: var(--text-mid); font-style: italic; margin-top: 4px; }
+
+/* ── EMPTY STATE ── */
+.empty { text-align: center; padding: 60px 20px; font-family: var(--font-mono); color: var(--text-dim); }
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.loading { text-align: center; padding: 40px; font-family: var(--font-mono); font-size: 13px; color: var(--text-dim); }
+
+/* ── NOTIFICATION MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  z-index: 9999; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; padding: 28px; max-width: 480px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--blue); letter-spacing: 2px; margin-bottom: 20px; }
+.modal-field { margin-bottom: 16px; }
+.modal-field label { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); display: block; margin-bottom: 6px; letter-spacing: 1px; }
+.modal-field input, .modal-field select {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); padding: 9px 12px; font-family: var(--font-mono); font-size: 13px; outline: none;
+}
+.modal-field input:focus { border-color: var(--blue); }
+.modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+.mbtn {
+  flex: 1; padding: 11px; font-family: var(--font-display); font-size: 14px;
+  font-weight: 700; letter-spacing: 1px; cursor: pointer; border: none; text-transform: uppercase;
+}
+.mbtn-primary { background: var(--blue); color: #fff; }
+.mbtn-primary:hover { background: #2563eb; }
+.mbtn-secondary { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+.mbtn-secondary:hover { color: var(--text); }
+.notif-status { font-family: var(--font-mono); font-size: 12px; padding: 8px 12px; margin-top: 10px; }
+.notif-status.ok { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+.notif-status.err { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+  padding: 10px 20px; font-family: var(--font-mono); font-size: 13px; color: var(--text);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 99998; opacity: 0;
+  transition: opacity 0.3s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error { border-color: var(--red); color: var(--red); }
+
+#dashBody { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ── PIN GATE ── -->
+<div id="pinGate">
+  <div class="pin-card">
+    <h2>SUPERVISOR</h2>
+    <p>PM DASHBOARD — ENTER PIN TO ACCESS</p>
+    <div class="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+      <div class="pin-dot" id="pd4"></div>
+      <div class="pin-dot" id="pd5"></div>
+    </div>
+    <div class="pin-keypad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key del" onclick="pinClear()" title="Clear">✕</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key del" onclick="pinBackspace()">⌫</button>
+    </div>
+    <div class="pin-status" id="pinStatus"></div>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="dashBody">
+
+<div class="header">
+  <div class="logo">PM SUPERVISOR <span>/ DASHBOARD</span></div>
+  <div class="header-right">
+    <div class="sync-dot" id="syncDot"></div>
+    <div class="last-refresh" id="lastRefresh">—</div>
+    <button class="refresh-btn" onclick="loadData()">⟳ REFRESH</button>
+    <button class="refresh-btn notif-btn" id="notifBtn" onclick="openNotifModal()">🔔 NOTIFICATIONS</button>
+  </div>
+</div>
+
+<div class="stat-bar">
+  <div class="stat-card" onclick="setTab('overdue')" id="sc-overdue">
+    <div class="stat-val red" id="stat-overdue">—</div>
+    <div class="stat-label">OVERDUE</div>
+  </div>
+  <div class="stat-card" onclick="setTab('upcoming')" id="sc-upcoming">
+    <div class="stat-val yellow" id="stat-upcoming">—</div>
+    <div class="stat-label">DUE SOON</div>
+  </div>
+  <div class="stat-card" onclick="setTab('all')" id="sc-all">
+    <div class="stat-val blue" id="stat-all">—</div>
+    <div class="stat-label">TOTAL PMs</div>
+  </div>
+  <div class="stat-card" onclick="setTab('history')" id="sc-history">
+    <div class="stat-val green" id="stat-history">—</div>
+    <div class="stat-label">COMPLETIONS</div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">MACHINE:</span>
+  <select id="machineFilter" onchange="applyFilters()">
+    <option value="">All Machines</option>
+  </select>
+  <span class="filter-label">STATUS:</span>
+  <select id="statusFilter" onchange="applyFilters()">
+    <option value="">All Statuses</option>
+    <option value="overdue">Overdue</option>
+    <option value="due-soon">Due Soon</option>
+    <option value="ok">OK</option>
+    <option value="pending">Never Done</option>
+  </select>
+  <span class="filter-label">TECH:</span>
+  <select id="techFilter" onchange="applyFilters()">
+    <option value="">All Techs</option>
+  </select>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tab-all" onclick="setTab('all')">All PMs</button>
+  <button class="tab" id="tab-overdue" onclick="setTab('overdue')">Overdue <span class="tab-badge" id="badge-overdue" style="display:none"></span></button>
+  <button class="tab" id="tab-upcoming" onclick="setTab('upcoming')">Due Soon</button>
+  <button class="tab" id="tab-history" onclick="setTab('history')">Completions</button>
+</div>
+
+<div class="content">
+  <div class="section active" id="sec-all">
+    <div class="pm-grid" id="list-all"><div class="loading">Loading PM data...</div></div>
+  </div>
+  <div class="section" id="sec-overdue">
+    <div class="pm-grid" id="list-overdue"></div>
+  </div>
+  <div class="section" id="sec-upcoming">
+    <div class="pm-grid" id="list-upcoming"></div>
+  </div>
+  <div class="section" id="sec-history">
+    <div id="list-history"><div class="loading">Loading history...</div></div>
+  </div>
+</div>
+
+</div><!-- end dashBody -->
+
+<!-- Notification Settings Modal -->
+<div class="modal-overlay" id="notifModal" onclick="if(event.target===this)closeNotifModal()">
+  <div class="modal-box">
+    <div class="modal-title">🔔 NOTIFICATION SETTINGS</div>
+    <div class="modal-field">
+      <label>EMAIL ADDRESS (for overdue/completion alerts)</label>
+      <input type="email" id="notifEmail" placeholder="supervisor@company.com">
+    </div>
+    <div class="modal-field">
+      <label>EMAIL SERVICE KEY (EmailJS — see setup instructions)</label>
+      <input type="text" id="emailjsKey" placeholder="Your EmailJS public key">
+    </div>
+    <div class="modal-field">
+      <label>EMAILJS SERVICE ID</label>
+      <input type="text" id="emailjsService" placeholder="service_xxxxxxx">
+    </div>
+    <div class="modal-field">
+      <label>EMAILJS TEMPLATE ID</label>
+      <input type="text" id="emailjsTemplate" placeholder="template_xxxxxxx">
+    </div>
+    <div class="modal-field">
+      <label>PUSH NOTIFICATIONS</label>
+      <button class="mbtn mbtn-secondary" style="width:100%" onclick="requestPushPermission()" id="pushBtn">Enable Push Notifications</button>
+    </div>
+    <div id="notifStatusMsg"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-secondary" onclick="closeNotifModal()">Cancel</button>
+      <button class="mbtn mbtn-primary" onclick="saveNotifSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── FIREBASE ──────────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyARa8-hl3f5ZB6Qi85mNaQgovd_aMdAa7A",
+  authDomain:        "pm-tracker-fa65f.firebaseapp.com",
+  projectId:         "pm-tracker-fa65f",
+  storageBucket:     "pm-tracker-fa65f.firebasestorage.app",
+  messagingSenderId: "210398489484",
+  appId:             "1:210398489484:web:9020eb9175a46ca27e44a9"
+};
+let _db = null;
+function _initFirebase() {
+  if (_db) return;
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    _db = firebase.firestore();
+  } catch(e) {
+    console.error("Firebase init error:", e);
+  }
+}
+
+// ── PIN GATE ──────────────────────────────────────────────────────────────────
+const SESSION_DAYS  = 30;
+const MAX_ATTEMPTS  = 3;
+const LOCKOUT_MINS  = 60;
+const _GATE_SALT    = "mustang-gate-v1";
+let _pinBuffer = "", _pinLocked = false;
+
+async function _gateHashPin(pin) {
+  const enc = new TextEncoder();
+  const km = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: enc.encode(_GATE_SALT), iterations: 200000, hash: "SHA-256" },
+    km, { name: "AES-GCM", length: 256 }, true, ["encrypt"]
+  );
+  const raw = await crypto.subtle.exportKey("raw", key);
+  return Array.from(new Uint8Array(raw)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+async function _sha256(s) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+function _getSession() {
+  try { const s = JSON.parse(localStorage.getItem("sup_session")); if (!s||Date.now()>s.expiry){localStorage.removeItem("sup_session");return null;} return s; } catch(e){return null;}
+}
+function _saveSession(t) { localStorage.setItem("sup_session", JSON.stringify({token:t, expiry:Date.now()+SESSION_DAYS*86400000})); }
+function _getLockout() {
+  try { const l = JSON.parse(localStorage.getItem("sup_lockout")); if(!l||Date.now()>l.until){localStorage.removeItem("sup_lockout");return null;} return l; } catch(e){return null;}
+}
+function _getAttempts() { return parseInt(localStorage.getItem("sup_attempts")||"0",10); }
+function _recordFail() {
+  const a = _getAttempts()+1; localStorage.setItem("sup_attempts",a);
+  if(a>=MAX_ATTEMPTS){localStorage.setItem("sup_lockout",JSON.stringify({until:Date.now()+LOCKOUT_MINS*60000}));localStorage.setItem("sup_attempts","0");return true;} return false;
+}
+function _clearAttempts() { localStorage.removeItem("sup_attempts"); localStorage.removeItem("sup_lockout"); }
+function _minsLeft(l){ return Math.ceil((l.until-Date.now())/60000); }
+function _showApp() { document.getElementById("pinGate").classList.add("hidden"); document.getElementById("dashBody").style.display="block"; initDashboard(); }
+function _showPinError(msg, perm) {
+  _pinLocked=false; _pinBuffer=""; _updateDots(true);
+  document.getElementById("pinStatus").textContent=msg;
+  if(!perm) setTimeout(()=>{_updateDots(false);document.getElementById("pinStatus").textContent="";},1800);
+}
+function _updateDots(err) { for(let i=0;i<6;i++){const d=document.getElementById("pd"+i);d.classList.toggle("filled",!err&&i<_pinBuffer.length);d.classList.toggle("error",err);} }
+function _applyLockoutUI(l) {
+  document.querySelectorAll(".pin-key").forEach(k=>{k.disabled=true;k.style.opacity="0.3";k.style.cursor="not-allowed";});
+  document.getElementById("pinStatus").textContent="🔒 Locked — try again in "+_minsLeft(l)+" min";
+}
+function pinKey(digit) {
+  if(_pinLocked||_getLockout()) return; if(_pinBuffer.length>=6) return;
+  _pinBuffer+=digit; _updateDots(false); document.getElementById("pinStatus").textContent="";
+  if(_pinBuffer.length===6) _submitPin();
+}
+function pinBackspace() { if(_pinLocked||_getLockout()) return; _pinBuffer=_pinBuffer.slice(0,-1); _updateDots(false); }
+async function _submitPin() {
+  _pinLocked=true; document.getElementById("pinStatus").textContent="Verifying…";
+  try {
+    _initFirebase();
+    const entered = await _gateHashPin(_pinBuffer);
+    const doc = await _db.collection("supervisor_config").doc("accessPin").get();
+    if(!doc.exists){ _showPinError("Not configured — see setup"); return; }
+    if(entered!==doc.data().hash){ const locked=_recordFail(); if(locked){_showPinError("🔒 Locked — "+_minsLeft(_getLockout())+" min",true);_applyLockoutUI(_getLockout());}else{_showPinError("Incorrect PIN ("+(MAX_ATTEMPTS-_getAttempts())+" left)");} return; }
+    _clearAttempts(); const t=await _sha256(Math.random()+Date.now()); _saveSession(t); _showApp();
+  } catch(e){ _showPinError("Connection error — try again"); }
+}
+document.addEventListener("keydown",e=>{
+  if(document.getElementById("pinGate").classList.contains("hidden")) return;
+  if(e.key>="0"&&e.key<="9") pinKey(e.key);
+  if(e.key==="Backspace") pinBackspace();
+});
+(function(){
+  if(_getSession()){_showApp();return;}
+  const l=_getLockout(); if(l)_applyLockoutUI(l);
+})();
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+let _allMachineData = [];   // [{machineName, deviceId, tasks:[...]}]
+let _allCompletions = [];   // [{taskName, machineName, tech, completedDate, notes, loggedAt}]
+let _currentTab = "all";
+let _notifSettings = {};
+
+function initDashboard() {
+  _initFirebase();
+  _notifSettings = JSON.parse(localStorage.getItem("sup_notif")||"{}");
+  loadData();
+  setInterval(loadData, 120000);
+}
+
+async function loadData() {
+  _initFirebase();
+  if (!_db) { showToast("Database not ready — try again", "error"); return; }
+  setSyncStatus("syncing");
+  try {
+    // Load PM status from all machines
+    const statusSnap = await _db.collection("supervisor_feed").doc("status").collection("machines").get();
+    _allMachineData = [];
+    statusSnap.forEach(doc => { _allMachineData.push(doc.data()); });
+
+    // Load completion history
+    const compSnap = await _db.collection("supervisor_feed").doc("completions").collection("events")
+      .orderBy("loggedAt","desc").limit(200).get();
+    _allCompletions = [];
+    compSnap.forEach(doc => { _allCompletions.push(doc.data()); });
+
+    updateFilters();
+    renderAll();
+    updateStats();
+    checkNotifications();
+    setSyncStatus("live");
+    document.getElementById("lastRefresh").textContent = "Updated " + new Date().toLocaleTimeString();
+  } catch(e) {
+    setSyncStatus("error");
+    showToast("Load failed: "+e.message, "error");
+  }
+}
+
+function setSyncStatus(s) {
+  const d = document.getElementById("syncDot");
+  d.className = "sync-dot" + (s==="live"?" live":s==="error"?" error":"");
+}
+
+// ── FILTERS ──────────────────────────────────────────────────────────────────
+function updateFilters() {
+  const machines = [...new Set(_allMachineData.map(m=>m.machineName))].sort();
+  const techs = [...new Set(_allCompletions.map(c=>c.tech).filter(Boolean))].sort();
+  const mSel = document.getElementById("machineFilter");
+  const tSel = document.getElementById("techFilter");
+  const mVal = mSel.value, tVal = tSel.value;
+  mSel.innerHTML = '<option value="">All Machines</option>' + machines.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("");
+  tSel.innerHTML = '<option value="">All Techs</option>' + techs.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join("");
+  mSel.value = mVal; tSel.value = tVal;
+}
+
+function applyFilters() { renderAll(); }
+
+function getFilteredTasks() {
+  const machine = document.getElementById("machineFilter").value;
+  const status  = document.getElementById("statusFilter").value;
+  let tasks = [];
+  _allMachineData.forEach(m => {
+    if(machine && m.machineName !== machine) return;
+    (m.tasks||[]).forEach(t => {
+      tasks.push({...t, machineName: m.machineName, deviceId: m.deviceId});
+    });
+  });
+  if(status) tasks = tasks.filter(t=>t.status===status);
+  // Sort: overdue first, then due-soon, then pending, then ok
+  const order = {overdue:0,'due-soon':1,pending:2,ok:3};
+  tasks.sort((a,b)=>(order[a.status]??4)-(order[b.status]??4));
+  return tasks;
+}
+
+function getFilteredHistory() {
+  const machine = document.getElementById("machineFilter").value;
+  const tech    = document.getElementById("techFilter").value;
+  return _allCompletions.filter(c => {
+    if(machine && c.machineName !== machine) return false;
+    if(tech && c.tech !== tech) return false;
+    return true;
+  });
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderAll() {
+  const tasks = getFilteredTasks();
+  const overdue  = tasks.filter(t=>t.status==="overdue");
+  const dueSoon  = tasks.filter(t=>t.status==="due-soon");
+
+  renderTaskList("list-all", tasks);
+  renderTaskList("list-overdue", overdue);
+  renderTaskList("list-upcoming", dueSoon);
+  renderHistory();
+}
+
+function renderTaskList(id, tasks) {
+  const el = document.getElementById(id);
+  if(!tasks.length){ el.innerHTML='<div class="empty"><div class="empty-icon">✓</div>No items here.</div>'; return; }
+  el.innerHTML = tasks.map(t => {
+    const dueText = formatDue(t);
+    const dueClass = t.status==="overdue"?"red":t.status==="due-soon"?"yellow":t.status==="pending"?"orange":"green";
+    const tagClass = t.status==="overdue"?"tag-overdue":t.status==="due-soon"?"tag-soon":t.status==="pending"?"tag-pending":"tag-ok";
+    const tagText  = t.status==="overdue"?"OVERDUE":t.status==="due-soon"?"DUE SOON":t.status==="pending"?"NEVER DONE":"OK";
+    return `<div class="pm-card ${t.status}">
+      <div class="pm-card-top">
+        <div>
+          <div class="pm-name">${esc(t.taskName)}</div>
+          <div class="pm-machine">📍 ${esc(t.machineName)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <span class="status-tag ${tagClass}">${tagText}</span>
+          <div class="pm-freq" style="margin-top:4px">${esc(t.freqLabel||"")}</div>
+        </div>
+      </div>
+      <div class="pm-bottom">
+        <div class="pm-due ${dueClass}">${dueText}</div>
+        ${t.lastTech?`<div class="pm-tech">Last: ${esc(t.lastTech)}</div>`:""}
+        ${t.lastCompletedDate?`<div class="pm-tech">Completed: ${esc(t.lastCompletedDate)}</div>`:""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderHistory() {
+  const entries = getFilteredHistory();
+  const el = document.getElementById("list-history");
+  if(!entries.length){ el.innerHTML='<div class="empty"><div class="empty-icon">📋</div>No completions recorded yet.</div>'; return; }
+  el.innerHTML = entries.map(e=>`<div class="history-item">
+    <div class="history-item-top">
+      <div>
+        <div class="history-date">✓ ${esc(e.completedDate)}</div>
+        <div class="history-task">${esc(e.taskName)}</div>
+        <div class="history-meta">📍 ${esc(e.machineName)} &nbsp;|&nbsp; 👤 ${esc(e.tech||"Not specified")}</div>
+        ${e.notes?`<div class="history-notes-text">"${esc(e.notes)}"</div>`:""}
+      </div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);text-align:right;white-space:nowrap;">
+        Next due:<br>${esc(e.nextDue||"—")}
+      </div>
+    </div>
+  </div>`).join("");
+}
+
+function updateStats() {
+  const tasks   = getFilteredTasks();
+  const history = getFilteredHistory();
+  const overdue = tasks.filter(t=>t.status==="overdue").length;
+  const soon    = tasks.filter(t=>t.status==="due-soon").length;
+  document.getElementById("stat-overdue").textContent  = overdue;
+  document.getElementById("stat-upcoming").textContent = soon;
+  document.getElementById("stat-all").textContent      = tasks.length;
+  document.getElementById("stat-history").textContent  = history.length;
+  const badge = document.getElementById("badge-overdue");
+  if(overdue>0){ badge.textContent=overdue; badge.style.display=""; } else { badge.style.display="none"; }
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function setTab(tab) {
+  _currentTab = tab;
+  ["all","overdue","upcoming","history"].forEach(t=>{
+    document.getElementById("tab-"+t).classList.toggle("active",t===tab);
+    document.getElementById("sec-"+t).classList.toggle("active",t===tab);
+  });
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+let _lastNotifiedOverdue = new Set();
+let _lastNotifiedCompletion = new Set();
+
+function checkNotifications() {
+  const tasks = getFilteredTasks();
+  const overdue = tasks.filter(t=>t.status==="overdue");
+
+  // Push notifications for new overdue PMs
+  overdue.forEach(t => {
+    const key = `${t.machineName}_${t.taskId}`;
+    if(!_lastNotifiedOverdue.has(key)) {
+      sendPushNotification(`🚨 PM OVERDUE: ${t.taskName}`, `Machine: ${t.machineName}`);
+      _lastNotifiedOverdue.add(key);
+    }
+  });
+
+  // Email for overdue (once per session)
+  if(overdue.length > 0 && _notifSettings.email && !sessionStorage.getItem("overdue_emailed")) {
+    sendEmail("PM OVERDUE ALERT", `${overdue.length} PM(s) are overdue:\n\n` +
+      overdue.map(t=>`• ${t.taskName} (${t.machineName})`).join("\n"));
+    sessionStorage.setItem("overdue_emailed","1");
+  }
+
+  // Push + email for new completions
+  _allCompletions.slice(0,10).forEach(c => {
+    const key = c.loggedAt;
+    if(!_lastNotifiedCompletion.has(key)) {
+      sendPushNotification(`✅ PM Completed: ${c.taskName}`, `By ${c.tech} on ${c.machineName}`);
+      _lastNotifiedCompletion.add(key);
+    }
+  });
+}
+
+function sendPushNotification(title, body) {
+  if(Notification.permission !== "granted") return;
+  try { new Notification(title, { body, icon: "icon-192.png" }); } catch(e){}
+}
+
+async function requestPushPermission() {
+  const btn = document.getElementById("pushBtn");
+  if(!("Notification" in window)){ showNotifStatus("Push notifications not supported in this browser","err"); return; }
+  const perm = await Notification.requestPermission();
+  if(perm==="granted"){
+    btn.textContent="✓ Push Notifications Enabled";
+    btn.style.background="var(--green-dim)"; btn.style.color="var(--green)"; btn.style.border="1px solid var(--green)";
+    showNotifStatus("Push notifications enabled! You'll be alerted for overdue PMs and completions.","ok");
+  } else {
+    showNotifStatus("Permission denied — enable notifications in your browser settings.","err");
+  }
+}
+
+function sendEmail(subject, body) {
+  if(!_notifSettings.emailjsKey||!_notifSettings.emailjsService||!_notifSettings.emailjsTemplate||!_notifSettings.email) return;
+  // EmailJS integration
+  const script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
+  script.onload = () => {
+    emailjs.init(_notifSettings.emailjsKey);
+    emailjs.send(_notifSettings.emailjsService, _notifSettings.emailjsTemplate, {
+      to_email: _notifSettings.email,
+      subject, message: body,
+      from_name: "PM Supervisor Dashboard"
+    }).catch(e => console.warn("Email failed:", e));
+  };
+  document.head.appendChild(script);
+}
+
+function openNotifModal() {
+  document.getElementById("notifEmail").value     = _notifSettings.email||"";
+  document.getElementById("emailjsKey").value     = _notifSettings.emailjsKey||"";
+  document.getElementById("emailjsService").value = _notifSettings.emailjsService||"";
+  document.getElementById("emailjsTemplate").value= _notifSettings.emailjsTemplate||"";
+  if(Notification.permission==="granted"){
+    document.getElementById("pushBtn").textContent="✓ Push Notifications Enabled";
+    document.getElementById("pushBtn").style.background="var(--green-dim)";
+    document.getElementById("pushBtn").style.color="var(--green)";
+  }
+  document.getElementById("notifModal").classList.add("open");
+}
+function closeNotifModal() { document.getElementById("notifModal").classList.remove("open"); }
+function saveNotifSettings() {
+  _notifSettings = {
+    email:           document.getElementById("notifEmail").value.trim(),
+    emailjsKey:      document.getElementById("emailjsKey").value.trim(),
+    emailjsService:  document.getElementById("emailjsService").value.trim(),
+    emailjsTemplate: document.getElementById("emailjsTemplate").value.trim(),
+  };
+  localStorage.setItem("sup_notif", JSON.stringify(_notifSettings));
+  showNotifStatus("Settings saved!","ok");
+  setTimeout(closeNotifModal, 1200);
+}
+function showNotifStatus(msg, type) {
+  const el = document.getElementById("notifStatusMsg");
+  el.className = "notif-status " + type;
+  el.textContent = msg;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function formatDue(t) {
+  if(t.status==="pending") return "Never completed — needs initial service";
+  if(!t.nextDue) return "Unknown";
+  const today = new Date().toISOString().slice(0,10);
+  const diff = Math.round((new Date(t.nextDue)-new Date(today))/(1000*60*60*24));
+  if(diff<0) return `Overdue by ${Math.abs(diff)} day${Math.abs(diff)!==1?"s":""}`;
+  if(diff===0) return "Due today";
+  if(diff===1) return "Due tomorrow";
+  return `Due in ${diff} days (${t.nextDue})`;
+}
+function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function showToast(msg, type) {
+  const t = document.getElementById("toast");
+  t.textContent=msg; t.className="toast show"+(type?" "+type:"");
+  setTimeout(()=>t.className="toast",3000);
+}
+</script>
+</body>
+</html>
