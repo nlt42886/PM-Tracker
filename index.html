@@ -62,6 +62,10 @@
   .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); }
   .stat { background: var(--surface); padding: 10px 12px; text-align: center; cursor: pointer; }
   .stat:hover { background: var(--surface2); }
+  .stat { border-bottom: 3px solid transparent; }
+  .stat.active { background: var(--surface2); border-bottom-color: var(--orange); }
+  .stat.active .stat-label { color: var(--orange); font-weight: 700; }
+  .stat-sub { font-family: var(--font-mono); font-size: 0.75rem; color: var(--red); margin-top: 3px; min-height: 1em; }
   .stat-val { font-family: var(--font-display); font-size: 2rem; font-weight: 700; line-height: 1; }
   .stat-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-top: 2px; }
   .stat-val.red { color: var(--red); } .stat-val.yellow { color: var(--yellow); } .stat-val.green { color: var(--green); } .stat-val.orange { color: var(--orange); }
@@ -192,23 +196,16 @@
 </div>
 
 <div class="tabs">
-  <button class="tab active" onclick="setTab('all')" id="tab-all">All Tasks</button>
-  <button class="tab" onclick="setTab('overdue')" id="tab-overdue">Overdue <span class="tab-badge" id="badge-overdue"></span></button>
-  <button class="tab" onclick="setTab('due-soon')" id="tab-due-soon">Due Soon <span class="tab-badge" id="badge-soon"></span></button>
-  <button class="tab" onclick="setTab('by-date')" id="tab-by-date">By Due Date</button>
-  <button class="tab" onclick="setTab('history')" id="tab-history">History</button>
-  <button class="tab" onclick="setTab('manage')" id="tab-manage">⚙ Manage</button>
-  <button class="tab" onclick="setTab('data')" id="tab-data">💾 Backup</button>
-  <button id="tab-ok" style="display:none"></button>
-  <button id="tab-pending" style="display:none"></button>
-  <button id="tab-all-sorted" style="display:none"></button>
+  <button class="tab" onclick="setTab('by-date')" data-tab="by-date">By Due Date</button>
+  <button class="tab" onclick="setTab('manage')" data-tab="manage">⚙ Manage</button>
+  <button class="tab" onclick="setTab('data')" data-tab="data">💾 Backup</button>
 </div>
 
 <div class="stats-bar">
-  <div class="stat" onclick="setTab('overdue')"><div class="stat-val red" id="stat-overdue">0</div><div class="stat-label">Overdue</div></div>
-  <div class="stat" onclick="setTab('due-soon')"><div class="stat-val yellow" id="stat-soon">0</div><div class="stat-label">Due Soon</div></div>
-  <div class="stat" onclick="setTab('ok')"><div class="stat-val green" id="stat-ok">0</div><div class="stat-label">On Track</div></div>
-  <div class="stat" onclick="setTab('all-sorted')"><div class="stat-val orange" id="stat-pending">0</div><div class="stat-label" style="font-weight:700;color:var(--orange);">Simple View</div></div>
+  <div class="stat" data-tab="all-sorted" onclick="setTab('all-sorted')"><div class="stat-val orange" id="stat-simple">0</div><div class="stat-label">Simple View</div><div class="stat-sub"></div></div>
+  <div class="stat active" data-tab="all" onclick="setTab('all')"><div class="stat-val green" id="stat-all">0</div><div class="stat-label">All Tasks</div><div class="stat-sub"></div></div>
+  <div class="stat" data-tab="due-soon" onclick="setTab('due-soon')"><div class="stat-val yellow" id="stat-soon">0</div><div class="stat-label">Due Soon</div><div class="stat-sub" id="stat-overdue-sub"></div></div>
+  <div class="stat" data-tab="history" onclick="setTab('history')"><div class="stat-val" style="color:var(--text-mid);" id="stat-history">0</div><div class="stat-label">History</div><div class="stat-sub"></div></div>
 </div>
 
 <div class="task-list" id="taskList"></div>
@@ -805,7 +802,7 @@ function renderAll() {
   taskList.style.display = '';
   let tasks = getAllTasks();
   if (currentTab === 'overdue') tasks = tasks.filter(t => getStatus(t) === 'overdue');
-  else if (currentTab === 'due-soon') tasks = tasks.filter(t => getStatus(t) === 'due-soon');
+  else if (currentTab === 'due-soon') tasks = tasks.filter(t => getStatus(t) === 'due-soon' || getStatus(t) === 'overdue');
   else if (currentTab === 'ok') tasks = tasks.filter(t => getStatus(t) === 'ok');
   else if (currentTab === 'pending') tasks = tasks.filter(t => getStatus(t) === 'pending');
 
@@ -909,23 +906,25 @@ function renderHistory() {
 
 function updateStats() {
   let overdue = 0, soon = 0, ok = 0, pending = 0;
-  getAllTasks().forEach(t => { const s = getStatus(t); if (s==='overdue') overdue++; else if (s==='due-soon') soon++; else if (s==='ok') ok++; else pending++; });
-  document.getElementById('stat-overdue').textContent = overdue;
-  document.getElementById('stat-soon').textContent = soon;
-  document.getElementById('stat-ok').textContent = ok;
-  document.getElementById('stat-pending').textContent = getAllTasks().length;
+  const all = getAllTasks();
+  all.forEach(t => { const s = getStatus(t); if (s==='overdue') overdue++; else if (s==='due-soon') soon++; else if (s==='ok') ok++; else pending++; });
+  const state = getState();
+  let completions = 0;
+  all.forEach(t => { completions += state[t.id]?.history?.length || 0; });
+  document.getElementById('stat-simple').textContent = all.length;
+  document.getElementById('stat-all').textContent = all.length;
+  document.getElementById('stat-soon').textContent = soon + overdue;
+  document.getElementById('stat-history').textContent = completions;
+  document.getElementById('stat-overdue-sub').textContent = overdue > 0 ? overdue + ' overdue' : '';
   const badge = document.getElementById('globalOverdueBadge');
   if (overdue > 0) { badge.style.display = 'block'; badge.textContent = overdue + ' OVERDUE'; } else badge.style.display = 'none';
-  const ob = document.getElementById('badge-overdue'); const sb = document.getElementById('badge-soon');
-  if (overdue > 0) { ob.textContent = overdue; ob.style.display = 'inline'; } else ob.style.display = 'none';
-  if (soon > 0) { sb.textContent = soon; sb.style.display = 'inline'; } else sb.style.display = 'none';
   document.title = overdue > 0 ? `(${overdue} OVERDUE) Mustang PM Tracker` : 'Mustang PM Tracker';
 }
 
 function setTab(tab) {
   currentTab = tab;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  const el = document.getElementById('tab-' + tab); if (el) el.classList.add('active');
+  document.querySelectorAll('.stat, .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('[data-tab="' + tab + '"]').forEach(el => el.classList.add('active'));
   renderAll();
 }
 
