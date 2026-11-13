@@ -1022,7 +1022,7 @@ function renderAll() {
   if (simpleSort) {
     const bar = document.createElement('div');
     bar.className = 'seg simple-sort-bar';
-    bar.innerHTML = `<button class="${simpleSort === 'urgency' ? 'on' : ''}" onclick="setSimpleSort('urgency')">BY URGENCY</button><button class="${simpleSort === 'freq' ? 'on' : ''}" onclick="setSimpleSort('freq')">BY FREQUENCY</button>`;
+    bar.innerHTML = `<button class="${simpleSort === 'urgency' ? 'on' : ''}" onclick="setSimpleSort('urgency')">DUE NEXT</button><button class="${simpleSort === 'freq' ? 'on' : ''}" onclick="setSimpleSort('freq')">WEEKLY / MONTHLY</button>`;
     taskList.appendChild(bar);
   }
 
