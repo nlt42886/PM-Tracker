@@ -1317,7 +1317,7 @@ function renderModalNT() {
   if (!el || currentTaskId == null) return;
   const note = getTaskNote(currentTaskId);
   const q = `'${String(currentTaskId).replace(/[^\w-]/g, '')}'`;
-  el.innerHTML = `${note ? `<div class="pin-note" style="margin-top:10px;">📌 ${esc(note)}</div>` : ''}${toolsBoxHtml(currentTaskId, false)}
+  el.innerHTML = `${note ? `<div class="pin-note" style="margin-top:10px;">📌 ${esc(note)}</div>` : ''}${toolsBoxHtml(currentTaskId, true)}
     <div style="display:flex;gap:8px;margin:12px 0 4px;"><button class="modal-nt-btn" onclick="openNotesTools(${q})">📌🔧 NOTE &amp; TOOLS</button><button class="modal-nt-btn" onclick="openAddPMModal(${q})">✎ EDIT TASK</button></div>`;
 }
 function taskModalIsOpen() { return document.getElementById('modalOverlay').classList.contains('open'); }
