@@ -687,6 +687,24 @@ function ensureVti4Machine() {
     if (met2.tools && met2.tools[id]) { delete met2.tools[id]; changed = true; }
     if ((met2.custom || []).some(t => t.id === id)) { met2.custom = met2.custom.filter(t => t.id !== id); changed = true; }
   }
+  if ((allData.scheduleRules || 0) < 2) {
+    // Switch to Plex intervals: recompute each task's next due date from its latest completion
+    allData.machines.forEach(m => {
+      const md = allData.machineData[m.id];
+      if (!md || !md.state) return;
+      const builtIns = MACHINE_TASKS[m.id] || TASKS_DEFAULT;
+      const custom = md.custom || [];
+      const tasks = [...builtIns.map(t => custom.find(c => c.overrideBuiltIn && String(c.id) === String(t.id)) || t), ...custom.filter(c => !c.overrideBuiltIn)];
+      tasks.forEach(t => {
+        const ts = md.state[t.id];
+        if (!ts || !ts.history || !ts.history.length) return;
+        const latest = ts.history.map(h => h.date).sort().pop();
+        ts.nextDue = calcNextDue(latest, t.freq);
+      });
+    });
+    allData.scheduleRules = 2;
+    changed = true;
+  }
   if (!allData.machines.find(m => m.id === allData.activeMachine)) { allData.activeMachine = allData.machines[0].id; changed = true; }
   if (changed) saveAllData();
 }
@@ -767,30 +785,23 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function dateFromStr(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
 function strFromDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
-function calcNextDue(fromDateStr, freq) {
-  if (/^\d+(d|w|mo|y)$/.test(freq)) return calcNextDueCustom(fromDateStr, freq);
-  const d = dateFromStr(fromDateStr); const day = d.getDate(); let y = d.getFullYear(); let m = d.getMonth();
-  if (freq === '1w') { d.setDate(day + 7); return strFromDate(d); }
-  const addMonths = (n) => { m += n; if (m > 11) { y += Math.floor(m/12); m = m % 12; } const mx = new Date(y, m + 1, 0).getDate(); return `${y}-${String(m+1).padStart(2,'0')}-${String(Math.min(day, mx)).padStart(2,'0')}`; };
-  if (freq === '1m') return addMonths(1);
-  if (freq === '2m') return addMonths(2);
-  if (freq === '3m') return addMonths(3);
-  if (freq === '6m') return addMonths(6);
-  if (freq === '1y') { y += 1; const mx = new Date(y, m + 1, 0).getDate(); return `${y}-${String(m+1).padStart(2,'0')}-${String(Math.min(day, mx)).padStart(2,'0')}`; }
-  return fromDateStr;
+// Due dates follow Plex: a fixed number of days after completion
+// (week = 7 days, month = 28 days / 4 weeks, year = 336 days / 48 weeks).
+// (plain functions, not consts, so they also work during startup before this point is reached)
+function freqToDays(freq) {
+  const legacy = { '1w': '1w', '1m': '1mo', '2m': '2mo', '3m': '3mo', '6m': '6mo', '1y': '1y' };
+  const perUnit = { d: 1, w: 7, mo: 28, y: 336 };
+  const m = String(legacy[freq] || freq).match(/^(\d+)(d|w|mo|y)$/);
+  return m ? parseInt(m[1]) * perUnit[m[2]] : 0;
 }
-
-function calcNextDueCustom(fromDateStr, freq) {
-  const m = freq.match(/^(\d+)(d|w|mo|y)$/);
-  if (!m) return fromDateStr;
-  const n = parseInt(m[1]), t = m[2];
+function calcNextDue(fromDateStr, freq) {
+  const days = freqToDays(freq);
+  if (!days) return fromDateStr;
   const d = dateFromStr(fromDateStr);
-  if (t==='d') { d.setDate(d.getDate()+n); }
-  else if (t==='w') { d.setDate(d.getDate()+n*7); }
-  else if (t==='mo') { d.setMonth(d.getMonth()+n); }
-  else if (t==='y') { d.setFullYear(d.getFullYear()+n); }
+  d.setDate(d.getDate() + days);
   return strFromDate(d);
 }
+function calcNextDueCustom(fromDateStr, freq) { return calcNextDue(fromDateStr, freq); }
 
 function daysDiff(dateStr) { return Math.round((dateFromStr(dateStr) - dateFromStr(today())) / 86400000); }
 
@@ -799,15 +810,7 @@ function formatDate(dateStr) {
   return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1] + ' ' + parseInt(d) + ', ' + y;
 }
 
-function freqTotalDays(freq) {
-  if (freq==='1w') return 7; if (freq==='1m') return 30; if (freq==='2m') return 60;
-  if (freq==='3m') return 90; if (freq==='6m') return 180; if (freq==='1y') return 365;
-  const m = freq.match(/^(\d+)(d|w|mo|y)$/);
-  if (!m) return 30;
-  const n=parseInt(m[1]),t=m[2];
-  if (t==='d') return n; if (t==='w') return n*7; if (t==='mo') return n*30; if (t==='y') return n*365;
-  return 30;
-}
+function freqTotalDays(freq) { return freqToDays(freq) || 30; }
 
 function getStatus(task) {
   const state = getState();
@@ -1132,7 +1135,7 @@ function updatePMPreview() {
   const type = document.getElementById('pmFreqType').value;
   const amount = document.getElementById('pmAmount').value || 1;
   const labels = {d:'days',w:'weeks',mo:'months',y:'years'};
-  const extras = {w:' ('+amount*7+' days)',mo:'',y:'',d:''};
+  const extras = {w:' ('+amount*7+' days)',mo:' ('+amount*28+' days)',y:' ('+amount*336+' days)',d:''};
   document.getElementById('pmAmountLabel').textContent = 'How many '+labels[type]+'?';
   document.getElementById('pmPreview').textContent = '→ Repeats every '+amount+' '+labels[type]+(extras[type]||'');
 }
