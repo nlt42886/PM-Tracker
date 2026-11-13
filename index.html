@@ -177,6 +177,17 @@
   .seg { display: flex; margin-top: 8px; }
   .seg button { flex: 1; padding: 8px; border: 1px solid var(--border); background: var(--bg); font-family: var(--font-display); font-weight: 700; color: var(--text-dim); cursor: pointer; }
   .seg button.on { background: var(--orange-dim); color: var(--text); border-color: var(--orange); }
+  .tools-box { margin-top: 10px; border: 1px solid var(--border); border-left: 3px solid var(--orange); background: var(--surface2); padding: 7px 10px; }
+  .tools-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; font-size: 0.85rem; text-transform: uppercase; color: var(--text); }
+  .tools-toggle { color: var(--orange); }
+  .tools-body { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 2px; }
+  .tools-box.collapsible .tools-body { display: none; }
+  .tools-box.collapsible.open .tools-body { display: block; }
+  .tools-box .show-txt, .tools-box.open .hide-txt { display: inline; }
+  .tools-box .hide-txt, .tools-box.open .show-txt { display: none; }
+  .tools-line { font-family: var(--font-mono); font-size: 0.9rem; color: var(--text); margin-top: 4px; line-height: 1.5; }
+  .tools-line b { color: var(--orange); font-family: var(--font-display); letter-spacing: 0.5px; margin-right: 4px; }
+  .modal-nt-btn { flex: 1; background: var(--blue-dim); color: var(--text); border: 1px solid var(--blue); font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; padding: 10px; font-size: 0.95rem; cursor: pointer; }
   .add-pm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 400; align-items: flex-end; justify-content: center; }
   .add-pm-overlay.open { display: flex; }
   .add-pm-sheet { background: var(--surface); border-top: 2px solid var(--orange); width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
@@ -286,6 +297,7 @@
     </div>
     <div class="modal-body">
       <div id="modalInfo"></div>
+      <div id="modalNT"></div>
       <div class="section-title">— Log Completion —</div>
       <div class="complete-form">
         <div class="form-row"><label>Completed On (date)</label><input type="date" id="completionDate"></div>
@@ -935,7 +947,7 @@ function renderAll() {
       </div>
       <div style="font-family:var(--font-mono);font-size:0.95rem;margin-top:5px;">${compactDue}</div>`;
     } else {
-      card.innerHTML = `<div class="task-top"><div class="task-name">${esc(task.name)}</div><div class="task-freq">${dueTag}</div></div><div class="task-bottom"><div>${lastCompletedDate ? `<div class="history-count">${lastCompletedDate}</div>` : ''}${lastTech ? `<div class="last-tech">Tech: ${esc(lastTech)}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${taskNote ? `<div class="task-note-badge">📌 ${esc(taskNote)}</div>` : ''}${toolChipsHtml(getTaskTools(task.id))}</div>${tagHtml}</div>${ablogOverdue}${ablogSoon}${lastCompletionNotes ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:0.85rem;color:var(--text-mid);"><span style="color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-size:0.75rem;">Notes: </span>${esc(lastCompletionNotes)}</div>` : ''}`;
+      card.innerHTML = `<div class="task-top"><div class="task-name">${esc(task.name)}</div><div class="task-freq">${dueTag}</div></div><div class="task-bottom"><div>${lastCompletedDate ? `<div class="history-count">${lastCompletedDate}</div>` : ''}${lastTech ? `<div class="last-tech">Tech: ${esc(lastTech)}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${taskNote ? `<div class="task-note-badge">📌 ${esc(taskNote)}</div>` : ''}</div>${tagHtml}</div>${toolsBoxHtml(task.id, true)}${ablogOverdue}${ablogSoon}${lastCompletionNotes ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:0.85rem;color:var(--text-mid);"><span style="color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-size:0.75rem;">Notes: </span>${esc(lastCompletionNotes)}</div>` : ''}`;
     }    card.onclick = () => openModal(task.id);
     taskList.appendChild(card);
   });
@@ -994,18 +1006,16 @@ function setTab(tab) {
 // ── Task Modal ───────────────────────────────────────────────
 function openModal(taskId) {
   currentTaskId = taskId;
-  const task = getAllTasks().find(t => t.id === taskId);
+  const task = getAllTasks().find(t => String(t.id) === String(taskId));
+  currentTaskId = task.id;
   const state = getState();
-  const ts = state[taskId];
+  const ts = state[task.id];
   document.getElementById('modalTitle').textContent = task.name;
   document.getElementById('completionDate').value = today();
   document.getElementById('techName').value = localStorage.getItem('lastTechName') || '';
   document.getElementById('completionNotes').value = '';
-  document.getElementById('modalInfo').innerHTML = `
-    <div class="modal-info-row"><span class="info-label">Machine</span><span class="info-value">${esc(getActiveMachineName())}</span></div>
-    <div class="modal-info-row"><span class="info-label">Frequency</span><span class="info-value">${esc(task.freqLabel)}</span></div>
-    <div class="modal-info-row"><span class="info-label">Next Due</span><span class="info-value">${ts?.nextDue ? formatDate(ts.nextDue) : 'Never completed'}</span></div>
-    <div class="modal-info-row"><span class="info-label">Status</span><span class="info-value">${{overdue:'🔴 OVERDUE','due-soon':'🟡 DUE SOON',ok:'🟢 ON TRACK',pending:'🟠 NEVER DONE'}[getStatus(task)]}</span></div>`;
+  fillModalInfo(task);
+  renderModalNT();
   const history = ts?.history || [];
   const container = document.getElementById('historyEntries');
   if (history.length === 0) { container.innerHTML = '<div class="no-history">No history yet for this task.</div>'; }
@@ -1014,6 +1024,15 @@ function openModal(taskId) {
   document.getElementById('completionDate').addEventListener('change', updateNextDuePreview);
   document.getElementById('modalOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function fillModalInfo(task) {
+  const ts = getState()[task.id];
+  document.getElementById('modalInfo').innerHTML = `
+    <div class="modal-info-row"><span class="info-label">Machine</span><span class="info-value">${esc(getActiveMachineName())}</span></div>
+    <div class="modal-info-row"><span class="info-label">Frequency</span><span class="info-value">${esc(task.freqLabel)}</span></div>
+    <div class="modal-info-row"><span class="info-label">Next Due</span><span class="info-value">${ts?.nextDue ? formatDate(ts.nextDue) : 'Never completed'}</span></div>
+    <div class="modal-info-row"><span class="info-label">Status</span><span class="info-value">${{overdue:'🔴 OVERDUE','due-soon':'🟡 DUE SOON',ok:'🟢 ON TRACK',pending:'🟠 NEVER DONE'}[getStatus(task)]}</span></div>`;
 }
 
 function updateNextDuePreview() {
@@ -1091,7 +1110,7 @@ function openAddPMModal(taskId) {
 
 function closeAddPMModal() {
   document.getElementById('addPMOverlay').classList.remove('open');
-  document.body.style.overflow = '';
+  document.body.style.overflow = taskModalIsOpen() ? 'hidden' : '';
 }
 
 function handleAddPMClick(e) { if (e.target === document.getElementById('addPMOverlay')) closeAddPMModal(); }
@@ -1127,6 +1146,7 @@ function saveCustomPM() {
   saveAllData();
   closeAddPMModal();
   renderAll();
+  refreshTaskModal();
   autoSave();
 }
 
@@ -1258,6 +1278,59 @@ function getTaskTools(taskId) {
 function toolChipsHtml(tools) {
   return tools.length ? `<div>${tools.map(t => `<span class="tool-chip">🔧 ${esc(t)}</span>`).join('')}</div>` : '';
 }
+const TOOL_GROUP_LABELS = { 'Socket': 'Sockets', 'Wrench': 'Wrench', 'Allen Wrench': 'Allen' };
+function toolsGroupedHtml(tools) {
+  const groups = {}, other = [];
+  tools.forEach(t => {
+    const type = Object.keys(TOOL_SIZES).find(k => t.endsWith(' ' + k) && [...TOOL_SIZES[k].metric, ...TOOL_SIZES[k].sae].includes(t.slice(0, -k.length - 1)));
+    if (type) (groups[type] = groups[type] || []).push(t.slice(0, -type.length - 1));
+    else other.push(t);
+  });
+  let html = '';
+  Object.keys(TOOL_SIZES).forEach(k => {
+    if (!groups[k]) return;
+    const order = [...TOOL_SIZES[k].metric, ...TOOL_SIZES[k].sae];
+    groups[k].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    html += `<div class="tools-line"><b>${TOOL_GROUP_LABELS[k].toUpperCase()}</b> ${groups[k].map(esc).join(' · ')}</div>`;
+  });
+  if (other.length) html += `<div class="tools-line"><b>OTHER</b> ${other.map(esc).join(' · ')}</div>`;
+  return html;
+}
+const _openToolBoxes = new Set();
+function toolsBoxHtml(taskId, collapsible) {
+  const tools = getTaskTools(taskId);
+  if (!tools.length) return '';
+  const key = String(taskId).replace(/[^\w-]/g, '');
+  const open = !collapsible || _openToolBoxes.has(key);
+  return `<div class="tools-box ${collapsible ? 'collapsible' : ''} ${open ? 'open' : ''}">
+    <div class="tools-head" ${collapsible ? `onclick="toggleToolsBox(event,'${key}')"` : ''}><span>🔧 Tools Required (${tools.length})</span>${collapsible ? '<span class="tools-toggle"><span class="show-txt">SHOW ▾</span><span class="hide-txt">HIDE ▴</span></span>' : ''}</div>
+    <div class="tools-body">${toolsGroupedHtml(tools)}</div></div>`;
+}
+function toggleToolsBox(ev, key) {
+  ev.stopPropagation();
+  const box = ev.currentTarget.parentElement;
+  box.classList.toggle('open');
+  if (box.classList.contains('open')) _openToolBoxes.add(key); else _openToolBoxes.delete(key);
+}
+function renderModalNT() {
+  const el = document.getElementById('modalNT');
+  if (!el || currentTaskId == null) return;
+  const note = getTaskNote(currentTaskId);
+  const q = `'${String(currentTaskId).replace(/[^\w-]/g, '')}'`;
+  el.innerHTML = `${note ? `<div class="pin-note" style="margin-top:10px;">📌 ${esc(note)}</div>` : ''}${toolsBoxHtml(currentTaskId, false)}
+    <div style="display:flex;gap:8px;margin:12px 0 4px;"><button class="modal-nt-btn" onclick="openNotesTools(${q})">📌🔧 NOTE &amp; TOOLS</button><button class="modal-nt-btn" onclick="openAddPMModal(${q})">✎ EDIT TASK</button></div>`;
+}
+function taskModalIsOpen() { return document.getElementById('modalOverlay').classList.contains('open'); }
+function refreshTaskModal() {
+  if (!taskModalIsOpen() || currentTaskId == null) return;
+  const task = getAllTasks().find(t => String(t.id) === String(currentTaskId));
+  if (!task) return;
+  document.getElementById('modalTitle').textContent = task.name;
+  fillModalInfo(task);
+  renderModalNT();
+  updateNextDuePreview();
+}
+
 function openNotesTools(taskId, focus) {
   const task = getAllTasks().find(t => String(t.id) === String(taskId));
   if (!task) return;
@@ -1273,7 +1346,7 @@ function openNotesTools(taskId, focus) {
 }
 function closeNotesTools() {
   document.getElementById('ntOverlay').classList.remove('open');
-  document.body.style.overflow = '';
+  document.body.style.overflow = taskModalIsOpen() ? 'hidden' : '';
 }
 function setToolUnits(u) {
   _ntUnits = u;
@@ -1321,6 +1394,7 @@ function saveNotesTools() {
   saveAllData();
   closeNotesTools();
   renderAll();
+  refreshTaskModal();
   showToast('✓ Saved', 'success');
   autoSave();
 }
