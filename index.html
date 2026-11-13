@@ -932,10 +932,10 @@ function renderAll() {
   });
 }
 
-// Banner text for a frequency group, e.g. "Weekly Checks", "3 Month Check"
+// Banner text for a frequency group, e.g. "Weekly Check(s)", "3 Month Check(s)"
 function freqBanner(label, count) {
   const m = String(label).match(/^(\d+)\s*(day|week|month|year)s?$/i);
-  const word = count === 1 ? 'Check' : 'Checks';
+  const word = 'Check(s)';
   if (!m) return label + ' ' + word;
   const n = parseInt(m[1]), u = m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase();
   return (n === 1 && u === 'Week' ? 'Weekly' : n + ' ' + u) + ' ' + word;
