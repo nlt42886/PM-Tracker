@@ -519,36 +519,69 @@ const TASKS_VTI4 = [
 ];
 
 const TASKS_MET2 = [
-  { id: 'met2_1',  name: "Polycold Suction Pressure — 10–25 psi",               freq: "1w", freqLabel: "1 Week"   },
-  { id: 'met2_2',  name: "Polycold Discharge Pressure — 180–220 psi",           freq: "1w", freqLabel: "1 Week"   },
-  { id: 'met2_3',  name: "Color of Oil in Diffusion Pump — Clear",              freq: "1w", freqLabel: "1 Week"   },
-  { id: 'met2_4',  name: "Drain Water from Mech Pumps — No Water Present",      freq: "1w", freqLabel: "1 Week"   },
-  { id: 'met2_5',  name: "Grease High-Vac Shaft Cylinders",                     freq: "1w", freqLabel: "1 Week"   },
-  { id: 'met2_6',  name: "Rebuild/Replace Ion Gauge",                           freq: "1m", freqLabel: "1 Month"  },
-  { id: 'met2_7',  name: "Rebuild/Replace Isolation Valve",                     freq: "1m", freqLabel: "1 Month"  },
-  { id: 'met2_8',  name: "Leak Check for Cracks/Leaks and Repair if Necessary", freq: "1m", freqLabel: "1 Month"  },
-  { id: 'met2_9',  name: "Check Guide Bearings on Top of Carousel — Tighten or Change as Needed", freq: "1m", freqLabel: "1 Month" },
-  { id: 'met2_10', name: "Check Both Bearings on Lower Spindle Bearing Assembly on Bottom of Door — Change as Needed", freq: "1m", freqLabel: "1 Month" },
-  { id: 'met2_11', name: "Check Tensioner for Wear or Damage — Change as Needed", freq: "1m", freqLabel: "1 Month" },
-  { id: 'met2_12', name: "Check Spindle Drive Chains — Not Worn or Loose",      freq: "3m", freqLabel: "3 Months" },
-  { id: 'met2_13', name: "Tighten Door Hinge Bolts — 100 ft-lbs",               freq: "3m", freqLabel: "3 Months" },
-  { id: 'met2_14', name: "Clean and Calibrate Chamber Gauge",                   freq: "3m", freqLabel: "3 Months" },
-  { id: 'met2_15', name: "Clean and Calibrate Foreline Gauge",                  freq: "3m", freqLabel: "3 Months" },
-  { id: 'met2_16', name: "Clean and Calibrate Roughing Line Gauge",             freq: "3m", freqLabel: "3 Months" },
-  { id: 'met2_17', name: "Tighten Power Supply Cables (M. Tech)",               freq: "6m", freqLabel: "6 Months" },
-  { id: 'met2_18', name: "Replace Door Seal",                                   freq: "6m", freqLabel: "6 Months" },
-  { id: 'met2_19', name: "Replace High Vac Cylinder Seal",                      freq: "6m", freqLabel: "6 Months" },
-  { id: 'met2_20', name: "Replace Seal on Poppet Cylinder Shaft",               freq: "6m", freqLabel: "6 Months" },
-  { id: 'met2_21', name: "Rebuild Diffusion Pump #1",                           freq: "6m", freqLabel: "6 Months" },
-  { id: 'met2_22', name: "Rebuild Diffusion Pump #2",                           freq: "6m", freqLabel: "6 Months" },
-  { id: 'met2_23', name: "Acidize Water Lines for Glow Pockets",                freq: "1y", freqLabel: "1 Year"   },
-  { id: 'met2_24', name: "Check Belt Tension on Mechanical Pumps",              freq: "1y", freqLabel: "1 Year"   },
+  { id: 'met2_1', name: "Polycold Suction Pressure", freq: "1w", freqLabel: "1 Week", note: "10–25 psi" },
+  { id: 'met2_2', name: "Polycold Discharge Pressure", freq: "1w", freqLabel: "1 Week", note: "180–220 psi" },
+  { id: 'met2_3', name: "Color of Oil in Diffusion Pump", freq: "1w", freqLabel: "1 Week", note: "Should be clear" },
+  { id: 'met2_4', name: "Drain Water from Mech Pumps", freq: "1w", freqLabel: "1 Week", note: "No water present" },
+  { id: 'met2_5', name: "Grease High-Vac Shaft Cylinders", freq: "1w", freqLabel: "1 Week" },
+  { id: 'met2_6', name: "Rebuild/Replace Ion Gauge", freq: "1m", freqLabel: "1 Month" },
+  { id: 'met2_7', name: "Rebuild/Replace Isolation Valve", freq: "1m", freqLabel: "1 Month" },
+  { id: 'met2_8', name: "Leak Check for Cracks/Leaks and Repair if Necessary", freq: "1m", freqLabel: "1 Month" },
+  { id: 'met2_9', name: "Check Guide Bearings on Top of Carousel", freq: "1m", freqLabel: "1 Month", note: "Tighten or change as needed" },
+  { id: 'met2_10', name: "Check Both Bearings on Lower Spindle Bearing Assembly on Bottom of Door", freq: "1m", freqLabel: "1 Month", note: "Change as needed" },
+  { id: 'met2_11', name: "Check Tensioner for Wear or Damage", freq: "1m", freqLabel: "1 Month", note: "Change as needed" },
+  { id: 'met2_12', name: "Check Spindle Drive Chains", freq: "3m", freqLabel: "3 Months", note: "Should not be worn or loose" },
+  { id: 'met2_13', name: "Tighten Door Hinge Bolts", freq: "3m", freqLabel: "3 Months", note: "100 ft-lbs" },
+  { id: 'met2_14', name: "Clean and Calibrate Chamber Gauge", freq: "3m", freqLabel: "3 Months" },
+  { id: 'met2_15', name: "Clean and Calibrate Foreline Gauge", freq: "3m", freqLabel: "3 Months" },
+  { id: 'met2_16', name: "Clean and Calibrate Roughing Line Gauge", freq: "3m", freqLabel: "3 Months" },
+  { id: 'met2_17', name: "Tighten Power Supply Cables", freq: "6m", freqLabel: "6 Months", note: "M. Tech — should be tight" },
+  { id: 'met2_18', name: "Replace Door Seal", freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_19', name: "Replace High Vac Cylinder Seal", freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_20', name: "Replace Seal on Poppet Cylinder Shaft", freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_21', name: "Rebuild Diffusion Pump #1", freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_22', name: "Rebuild Diffusion Pump #2", freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_23', name: "Acidize Water Lines for Glow Pockets", freq: "1y", freqLabel: "1 Year" },
+  { id: 'met2_24', name: "Check Belt Tension on Mechanical Pumps", freq: "1y", freqLabel: "1 Year" },
+];
+
+// PMMA Anti-Haze Paint 1 AH — regular Tech tasks
+const TASKS_PMMA1 = [
+  { id: 'pmma1_1', name: "Change All Air Supply Pre-Filters", freq: "1m", freqLabel: "1 Month", note: "Write change date on filter housing" },
+  { id: 'pmma1_2', name: "Clean the Filters on the Main Control Panel Cooling Fans", freq: "1m", freqLabel: "1 Month" },
+  { id: 'pmma1_3', name: "Check Oven Cycle Times", freq: "1m", freqLabel: "1 Month", note: "Dwell 37 sec" },
+  { id: 'pmma1_4', name: "Check the 4 Bolts That Bolt the Drive Motor to the Floor", freq: "1m", freqLabel: "1 Month", note: "Fix or replace if damaged" },
+  { id: 'pmma1_5', name: "Check the Booth Balance With the Velometer at Each Opening", freq: "1m", freqLabel: "1 Month", note: "Ensure positive air flow" },
+  { id: 'pmma1_6', name: "Grease the Oven Bearings", freq: "1m", freqLabel: "1 Month", note: "2–3 pumps from grease gun located on side of oven" },
+  { id: 'pmma1_7', name: "Clean Steamer Tank and Float", freq: "3m", freqLabel: "3 Months", note: "At unload" },
+  { id: 'pmma1_8', name: "Change Paint Guns and Regulators", freq: "3m", freqLabel: "3 Months", note: "Rebuild ones removed" },
+  { id: 'pmma1_9', name: "Change All Mid-Filters", freq: "6m", freqLabel: "6 Months", note: "Write change date on filter housing" },
+  { id: 'pmma1_10', name: "Check the Tightness of All Electrical Wires Inside the Main Control Panel", freq: "6m", freqLabel: "6 Months" },
+  { id: 'pmma1_11', name: "Replace All Paint Lines", freq: "6m", freqLabel: "6 Months", note: "Paint pot to gun" },
+  { id: 'pmma1_12', name: "Inspect and Lubricate All Gear Boxes", freq: "6m", freqLabel: "6 Months" },
+  { id: 'pmma1_13', name: "Clean & Inspect/Rebuild Paint Pump", freq: "6m", freqLabel: "6 Months" },
+  { id: 'pmma1_14', name: "Grease the Bearings on All Electric Motors", freq: "6m", freqLabel: "6 Months", note: "1–2 pumps" },
+  { id: 'pmma1_15', name: "Grease the Conveyor Drive Unit", freq: "6m", freqLabel: "6 Months", note: "Shell Omala 220 — fill to overflow" },
+  { id: 'pmma1_16', name: "Grease All Electric Motors", freq: "6m", freqLabel: "6 Months" },
+  { id: 'pmma1_17', name: "Check Waterfall Pump", freq: "1y", freqLabel: "1 Year", note: "Clean inside" },
+  { id: 'pmma1_18', name: "Inspect and Clean Air Valves", freq: "1y", freqLabel: "1 Year" },
+  { id: 'pmma1_19', name: "Change HEPA Filters", freq: "1y", freqLabel: "1 Year", note: "Write change date on filter housing" },
+];
+
+// PMMA Anti-Haze Paint 1 AH — Master Tech tasks
+const TASKS_PMMA1_MASTER = [
+  { id: 'pmma1m_1', name: "Run DataPaq Through Oven", freq: "3m", freqLabel: "3 Months", note: "Record results on ENG-4-083 form" },
+  { id: 'pmma1m_2', name: "Backup Robot Programs", freq: "3m", freqLabel: "3 Months", note: "Download to disc" },
+  { id: 'pmma1m_3', name: "Change Robot Controller Batteries", freq: "1y", freqLabel: "1 Year", note: "Replace with new batteries" },
+  { id: 'pmma1m_4', name: "Replace Back-Up Lithium Batteries Inside Touch Screen Panel", freq: "1y", freqLabel: "1 Year", note: "Remember to back up screen before changing" },
 ];
 
 const MACHINE_TASKS = {
   'mach_default': TASKS_DEFAULT,
   'mach_vti4':    TASKS_VTI4,
   'mach_met2':    TASKS_MET2,
+  'mach_pmma1':   TASKS_PMMA1,
+  'mach_pmma1m':  TASKS_PMMA1_MASTER,
 };
 
 // ── Multi-Machine Data Layer ─────────────────────────────────
@@ -575,12 +608,16 @@ function migrateOldData() {
       { id: 'mach_default', name: hasOldData ? oldName : 'Mustang' },
       { id: 'mach_vti4',    name: 'VTI 4' },
       { id: 'mach_met2',    name: 'MET 2' },
+      { id: 'mach_pmma1',   name: 'PMMA AH 1' },
+      { id: 'mach_pmma1m',  name: 'PMMA AH 1 – Master Tech' },
     ],
     activeMachine: 'mach_default',
     machineData: {
       'mach_default': { state: oldState, notes: oldNotes, custom: oldCustom },
       'mach_vti4':    { state: {}, notes: {}, custom: [] },
       'mach_met2':    { state: {}, notes: {}, custom: [] },
+      'mach_pmma1':   { state: {}, notes: {}, custom: [] },
+      'mach_pmma1m':  { state: {}, notes: {}, custom: [] },
     }
   };
 }
@@ -630,6 +667,13 @@ function ensureVti4Machine() {
     allData.machineData['mach_met2'] = { state: {}, notes: {}, custom: [] };
     changed = true;
   }
+  [['mach_pmma1', 'PMMA AH 1'], ['mach_pmma1m', 'PMMA AH 1 – Master Tech']].forEach(([id, name]) => {
+    if (!allData.machines.find(m => m.id === id)) {
+      allData.machines.push({ id, name });
+      allData.machineData[id] = { state: {}, notes: {}, custom: [] };
+      changed = true;
+    }
+  });
   if (!allData.machines.find(m => m.id === allData.activeMachine)) { allData.activeMachine = allData.machines[0].id; changed = true; }
   if (changed) saveAllData();
 }
@@ -774,7 +818,15 @@ function freqCodeToLabel(freq) {
   return freq;
 }
 
-function getTaskNote(taskId) { return getNotes()[taskId] || ''; }
+function getBuiltInNote(taskId) {
+  const t = getDefaultTasksForMachine(allData.activeMachine).find(t => String(t.id) === String(taskId));
+  return (t && t.note) || '';
+}
+// A note the user saved (even an empty one, meaning "removed") wins over the built-in note
+function getTaskNote(taskId) {
+  const notes = getNotes();
+  return Object.prototype.hasOwnProperty.call(notes, taskId) ? notes[taskId] : getBuiltInNote(taskId);
+}
 
 // ── Machine Selector ─────────────────────────────────────────
 function renderMachineSelector() {
@@ -1388,7 +1440,8 @@ function saveNotesTools() {
   const md = getActiveMachineData();
   const text = document.getElementById('ntNote').value.trim();
   const notes = getNotes();
-  if (text) notes[_ntTaskId] = text; else delete notes[_ntTaskId];
+  if (text === getBuiltInNote(_ntTaskId)) delete notes[_ntTaskId];
+  else notes[_ntTaskId] = text;
   if (!md.tools) md.tools = {};
   if (_ntTools.length) md.tools[_ntTaskId] = [..._ntTools]; else delete md.tools[_ntTaskId];
   saveAllData();
