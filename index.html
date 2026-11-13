@@ -177,6 +177,13 @@
   .seg { display: flex; margin-top: 8px; }
   .seg button { flex: 1; padding: 8px; border: 1px solid var(--border); background: var(--bg); font-family: var(--font-display); font-weight: 700; color: var(--text-dim); cursor: pointer; }
   .seg button.on { background: var(--orange-dim); color: var(--text); border-color: var(--orange); }
+  .task-card.simple-card { padding: 10px 12px; border-left-width: 4px; }
+  .sv-row { display: flex; align-items: center; gap: 12px; }
+  .sv-cal { width: 58px; flex-shrink: 0; text-align: center; border: 2px solid; border-radius: 6px; overflow: hidden; background: var(--bg); }
+  .sv-mo { font-family: var(--font-display); font-weight: 700; font-size: 0.8rem; letter-spacing: 1px; padding: 2px 0; color: #000; }
+  .sv-dy { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; line-height: 1.3; color: var(--text); }
+  .sv-name { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; }
+  .sv-pill { display: inline-block; margin-top: 6px; font-family: var(--font-mono); font-weight: 700; font-size: 0.9rem; padding: 2px 10px; border-radius: 12px; border: 1.5px solid; }
   .simple-due-box { flex-shrink: 0; font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; border: 2px solid; padding: 8px 12px; text-align: center; white-space: nowrap; min-width: 92px; }
   .tools-box { margin-top: 10px; border: 1px solid var(--border); border-left: 3px solid var(--orange); background: var(--surface2); padding: 7px 10px; }
   .tools-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; font-size: 0.85rem; text-transform: uppercase; color: var(--text); }
@@ -1007,7 +1014,7 @@ function renderAll() {
       lastFreq = task.freqLabel;
       const div = document.createElement('div'); div.className = 'freq-divider'; div.textContent = freqBanner(task.freqLabel, tasks.filter(x => x.freqLabel === task.freqLabel).length); taskList.appendChild(div);
     }
-    if (currentTab === 'by-date' || currentTab === 'all-sorted') {
+    if (currentTab === 'by-date') {
       const lbl = state[task.id]?.nextDue ? formatDate(state[task.id].nextDue) : 'Never Completed';
       if (lbl !== lastDivDate) { lastDivDate = lbl; const div = document.createElement('div'); div.className = 'freq-divider'; div.textContent = '— ' + lbl + ' —'; taskList.appendChild(div); }
     }
@@ -1047,12 +1054,17 @@ function renderAll() {
       // Compact view — name, bold due date, big "days left" box on the right
       const col = { pending: 'orange', overdue: 'red', 'due-soon': 'yellow', ok: 'green' }[status];
       const dateLine = status === 'pending' ? 'Never completed' : formatDate(ts.nextDue);
-      const boxText = status === 'pending' || diff <= 0 ? dueTag : `Due in ${diff} day${diff === 1 ? '' : 's'}`;
-      card.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="flex:1;min-width:0;font-family:var(--font-display);font-size:1.1rem;font-weight:600;">${esc(task.name)}</div>
-        <div style="flex-shrink:0;text-align:center;">
-          <div class="simple-due-box" style="color:var(--${col});border-color:var(--${col});">${boxText}</div>
-          <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;margin-top:6px;color:var(--${col});">${dateLine}</div>
+      const boxText = status === 'pending' ? 'Not done yet' : diff < 0 ? dueTag : diff === 0 ? 'Due today' : `Due in ${diff} day${diff === 1 ? '' : 's'}`;
+      const dueDate = ts?.nextDue ? dateFromStr(ts.nextDue) : null;
+      const calMonth = dueDate ? ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][dueDate.getMonth()] : 'NEW';
+      const calDay = dueDate ? dueDate.getDate() : '–';
+      card.classList.add('simple-card');
+      card.style.borderLeftColor = `var(--${col})`;
+      card.innerHTML = `<div class="sv-row">
+        <div class="sv-cal" style="border-color:var(--${col});"><div class="sv-mo" style="background:var(--${col});">${calMonth}</div><div class="sv-dy">${calDay}</div></div>
+        <div style="flex:1;min-width:0;">
+          <div class="sv-name">${esc(task.name)}</div>
+          <span class="sv-pill" style="color:var(--${col});border-color:var(--${col});">${boxText}</span>
         </div>
       </div>`;
     } else {
