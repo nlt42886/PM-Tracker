@@ -1047,12 +1047,13 @@ function renderAll() {
       // Compact view — name, bold due date, big "days left" box on the right
       const col = { pending: 'orange', overdue: 'red', 'due-soon': 'yellow', ok: 'green' }[status];
       const dateLine = status === 'pending' ? 'Never completed' : formatDate(ts.nextDue);
+      const boxText = status === 'pending' || diff <= 0 ? dueTag : `Due in ${diff} day${diff === 1 ? '' : 's'}`;
       card.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="flex:1;min-width:0;">
-          <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;">${esc(task.name)}</div>
-          <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;margin-top:5px;color:var(--${col});">${dateLine}</div>
+        <div style="flex:1;min-width:0;font-family:var(--font-display);font-size:1.1rem;font-weight:600;">${esc(task.name)}</div>
+        <div style="flex-shrink:0;text-align:center;">
+          <div class="simple-due-box" style="color:var(--${col});border-color:var(--${col});">${boxText}</div>
+          <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;margin-top:6px;color:var(--${col});">${dateLine}</div>
         </div>
-        <div class="simple-due-box" style="color:var(--${col});border-color:var(--${col});">${status === 'pending' || diff <= 0 ? dueTag : `Due in ${diff} day${diff === 1 ? '' : 's'}`}</div>
       </div>`;
     } else {
       card.innerHTML = `<div class="task-top"><div class="task-name">${esc(task.name)}</div><div class="task-freq">${dueTag}</div></div><div class="task-bottom"><div>${lastCompletedDate ? `<div class="history-count">${lastCompletedDate}</div>` : ''}${lastTech ? `<div class="last-tech">Tech: ${esc(lastTech)}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${taskNote ? `<div class="task-note-badge">📌 ${esc(taskNote)}</div>` : ''}</div>${tagHtml}</div>${toolsBoxHtml(task.id, true)}${ablogOverdue}${ablogSoon}${lastCompletionNotes ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:0.85rem;color:var(--text-mid);"><span style="color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-size:0.75rem;">Notes: </span>${esc(lastCompletionNotes)}</div>` : ''}`;
