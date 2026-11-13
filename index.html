@@ -535,7 +535,6 @@ const TASKS_MET2 = [
   { id: 'met2_14', name: "Clean and Calibrate Chamber Gauge", freq: "3m", freqLabel: "3 Months" },
   { id: 'met2_15', name: "Clean and Calibrate Foreline Gauge", freq: "3m", freqLabel: "3 Months" },
   { id: 'met2_16', name: "Clean and Calibrate Roughing Line Gauge", freq: "3m", freqLabel: "3 Months" },
-  { id: 'met2_17', name: "Tighten Power Supply Cables", freq: "6m", freqLabel: "6 Months", note: "M. Tech — should be tight" },
   { id: 'met2_18', name: "Replace Door Seal", freq: "6m", freqLabel: "6 Months" },
   { id: 'met2_19', name: "Replace High Vac Cylinder Seal", freq: "6m", freqLabel: "6 Months" },
   { id: 'met2_20', name: "Replace Seal on Poppet Cylinder Shaft", freq: "6m", freqLabel: "6 Months" },
@@ -543,6 +542,11 @@ const TASKS_MET2 = [
   { id: 'met2_22', name: "Rebuild Diffusion Pump #2", freq: "6m", freqLabel: "6 Months" },
   { id: 'met2_23', name: "Acidize Water Lines for Glow Pockets", freq: "1y", freqLabel: "1 Year" },
   { id: 'met2_24', name: "Check Belt Tension on Mechanical Pumps", freq: "1y", freqLabel: "1 Year" },
+];
+
+// MET 2 — Master Tech tasks (keeps its original id so existing history carries over)
+const TASKS_MET2_MASTER = [
+  { id: 'met2_17', name: "Tighten Power Supply Cables", freq: "6m", freqLabel: "6 Months", note: "Should be tight" },
 ];
 
 // PMMA Anti-Haze Paint 1 AH — regular Tech tasks
@@ -580,6 +584,7 @@ const MACHINE_TASKS = {
   'mach_default': TASKS_DEFAULT,
   'mach_vti4':    TASKS_VTI4,
   'mach_met2':    TASKS_MET2,
+  'mach_met2m':   TASKS_MET2_MASTER,
   'mach_pmma1':   TASKS_PMMA1,
   'mach_pmma1m':  TASKS_PMMA1_MASTER,
 };
@@ -608,6 +613,7 @@ function migrateOldData() {
       { id: 'mach_default', name: hasOldData ? oldName : 'Mustang' },
       { id: 'mach_vti4',    name: 'VTI 4' },
       { id: 'mach_met2',    name: 'MET 2' },
+      { id: 'mach_met2m',   name: 'MET 2 – Master Tech' },
       { id: 'mach_pmma1',   name: 'PMMA AH 1' },
       { id: 'mach_pmma1m',  name: 'PMMA AH 1 – Master Tech' },
     ],
@@ -616,6 +622,7 @@ function migrateOldData() {
       'mach_default': { state: oldState, notes: oldNotes, custom: oldCustom },
       'mach_vti4':    { state: {}, notes: {}, custom: [] },
       'mach_met2':    { state: {}, notes: {}, custom: [] },
+      'mach_met2m':   { state: {}, notes: {}, custom: [] },
       'mach_pmma1':   { state: {}, notes: {}, custom: [] },
       'mach_pmma1m':  { state: {}, notes: {}, custom: [] },
     }
@@ -667,13 +674,25 @@ function ensureVti4Machine() {
     allData.machineData['mach_met2'] = { state: {}, notes: {}, custom: [] };
     changed = true;
   }
-  [['mach_pmma1', 'PMMA AH 1'], ['mach_pmma1m', 'PMMA AH 1 – Master Tech']].forEach(([id, name]) => {
+  [['mach_met2m', 'MET 2 – Master Tech'], ['mach_pmma1', 'PMMA AH 1'], ['mach_pmma1m', 'PMMA AH 1 – Master Tech']].forEach(([id, name]) => {
     if (!allData.machines.find(m => m.id === id)) {
-      allData.machines.push({ id, name });
+      // keep MET 2 Master Tech right after MET 2 in the list
+      const after = id === 'mach_met2m' ? allData.machines.findIndex(m => m.id === 'mach_met2') : -1;
+      if (after !== -1) allData.machines.splice(after + 1, 0, { id, name }); else allData.machines.push({ id, name });
       allData.machineData[id] = { state: {}, notes: {}, custom: [] };
       changed = true;
     }
   });
+  // Move "Tighten Power Supply Cables" history/notes/tools from MET 2 to MET 2 Master Tech
+  const met2 = allData.machineData['mach_met2'], met2m = allData.machineData['mach_met2m'];
+  if (met2 && met2m) {
+    const id = 'met2_17';
+    if (met2.state && met2.state[id]) { if (!met2m.state[id]) met2m.state[id] = met2.state[id]; delete met2.state[id]; changed = true; }
+    if (met2.notes && id in met2.notes) { if (!(id in met2m.notes)) met2m.notes[id] = met2.notes[id]; delete met2.notes[id]; changed = true; }
+    if (met2.tools && met2.tools[id]) { met2m.tools = met2m.tools || {}; if (!met2m.tools[id]) met2m.tools[id] = met2.tools[id]; delete met2.tools[id]; changed = true; }
+    const ov = (met2.custom || []).filter(t => t.id === id);
+    if (ov.length) { met2.custom = met2.custom.filter(t => t.id !== id); if (!met2m.custom.some(t => t.id === id)) met2m.custom.push(...ov); changed = true; }
+  }
   if (!allData.machines.find(m => m.id === allData.activeMachine)) { allData.activeMachine = allData.machines[0].id; changed = true; }
   if (changed) saveAllData();
 }
