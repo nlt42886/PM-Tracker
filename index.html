@@ -321,6 +321,12 @@
       <button onclick="openMachineModal()" style="width:100%;background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-size:1.1rem;font-weight:700;letter-spacing:1px;padding:11px;cursor:pointer;margin-bottom:12px;">➕ ADD NEW MACHINE</button>
       <div id="machineList"></div>
     </div>
+    <!-- Due Date Rules Section -->
+    <div class="manage-section">
+      <div class="manage-section-title">📅 Due Date Rules</div>
+      <div class="seg" style="margin-top:0;"><button id="schedPlex" onclick="setScheduleMode('plex')">PLEX (FIXED DAYS)</button><button id="schedCal" onclick="setScheduleMode('calendar')">SAME DAY OF MONTH</button></div>
+      <div id="schedInfo" style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text-dim);margin-top:8px;"></div>
+    </div>
     <!-- All PM Tasks Section -->
     <div class="manage-section">
       <div class="manage-section-title">📋 PM Tasks — <span id="manageMachineName"></span></div>
@@ -688,20 +694,9 @@ function ensureVti4Machine() {
     if ((met2.custom || []).some(t => t.id === id)) { met2.custom = met2.custom.filter(t => t.id !== id); changed = true; }
   }
   if ((allData.scheduleRules || 0) < 2) {
-    // Switch to Plex intervals: recompute each task's next due date from its latest completion
-    allData.machines.forEach(m => {
-      const md = allData.machineData[m.id];
-      if (!md || !md.state) return;
-      const builtIns = MACHINE_TASKS[m.id] || TASKS_DEFAULT;
-      const custom = md.custom || [];
-      const tasks = [...builtIns.map(t => custom.find(c => c.overrideBuiltIn && String(c.id) === String(t.id)) || t), ...custom.filter(c => !c.overrideBuiltIn)];
-      tasks.forEach(t => {
-        const ts = md.state[t.id];
-        if (!ts || !ts.history || !ts.history.length) return;
-        const latest = ts.history.map(h => h.date).sort().pop();
-        ts.nextDue = calcNextDue(latest, t.freq);
-      });
-    });
+    // First load with the Plex rules: recompute existing due dates
+    if (!allData.scheduleMode) allData.scheduleMode = 'plex';
+    recomputeAllDueDates();
     allData.scheduleRules = 2;
     changed = true;
   }
@@ -785,21 +780,70 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function dateFromStr(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
 function strFromDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
-// Due dates follow Plex: a fixed number of days after completion
-// (week = 7 days, month = 28 days / 4 weeks, year = 336 days / 48 weeks).
-// (plain functions, not consts, so they also work during startup before this point is reached)
-function freqToDays(freq) {
+// Two due-date rules, chosen on the Manage screen:
+//  'plex'     — fixed days after completion, like Plex (week 7, month 28, year 336)
+//  'calendar' — same day of the month / same date next year (the original rule)
+// (plain functions, not consts, so they also work during startup)
+function normFreq(freq) {
   const legacy = { '1w': '1w', '1m': '1mo', '2m': '2mo', '3m': '3mo', '6m': '6mo', '1y': '1y' };
-  const perUnit = { d: 1, w: 7, mo: 28, y: 336 };
   const m = String(legacy[freq] || freq).match(/^(\d+)(d|w|mo|y)$/);
-  return m ? parseInt(m[1]) * perUnit[m[2]] : 0;
+  return m ? { n: parseInt(m[1]), unit: m[2] } : null;
 }
+function freqToDays(freq) {
+  const f = normFreq(freq);
+  return f ? f.n * { d: 1, w: 7, mo: 28, y: 336 }[f.unit] : 0;
+}
+function getScheduleMode() { return (typeof allData !== 'undefined' && allData && allData.scheduleMode) || 'plex'; }
 function calcNextDue(fromDateStr, freq) {
-  const days = freqToDays(freq);
-  if (!days) return fromDateStr;
+  const f = normFreq(freq);
+  if (!f) return fromDateStr;
   const d = dateFromStr(fromDateStr);
-  d.setDate(d.getDate() + days);
+  if (getScheduleMode() === 'calendar' && (f.unit === 'mo' || f.unit === 'y')) {
+    const months = f.unit === 'mo' ? f.n : f.n * 12;
+    const day = d.getDate();
+    const target = new Date(d.getFullYear(), d.getMonth() + months, 1);
+    const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+    target.setDate(Math.min(day, lastDay));
+    return strFromDate(target);
+  }
+  d.setDate(d.getDate() + (f.unit === 'mo' || f.unit === 'y' ? freqToDays(freq) : f.n * (f.unit === 'w' ? 7 : 1)));
   return strFromDate(d);
+}
+// Recompute every task's next due date (all machines) from its latest completion
+function recomputeAllDueDates() {
+  allData.machines.forEach(m => {
+    const md = allData.machineData[m.id];
+    if (!md || !md.state) return;
+    const builtIns = MACHINE_TASKS[m.id] || TASKS_DEFAULT;
+    const custom = md.custom || [];
+    const tasks = [...builtIns.map(t => custom.find(c => c.overrideBuiltIn && String(c.id) === String(t.id)) || t), ...custom.filter(c => !c.overrideBuiltIn)];
+    tasks.forEach(t => {
+      const ts = md.state[t.id];
+      if (!ts || !ts.history || !ts.history.length) return;
+      ts.nextDue = calcNextDue(ts.history.map(h => h.date).sort().pop(), t.freq);
+    });
+  });
+}
+function setScheduleMode(mode) {
+  if (mode === getScheduleMode()) return;
+  const label = mode === 'plex' ? 'Plex intervals (fixed days)' : 'same day of the month';
+  if (!confirm('Switch due dates to ' + label + '?\n\nEvery task on every machine will be rescheduled from its last completion.')) return;
+  allData.scheduleMode = mode;
+  recomputeAllDueDates();
+  saveAllData();
+  renderAll();
+  showToast('✓ Due dates now use ' + label, 'success');
+  autoSave();
+}
+function renderScheduleMode() {
+  const mode = getScheduleMode();
+  const plex = document.getElementById('schedPlex'), cal = document.getElementById('schedCal');
+  if (!plex) return;
+  plex.classList.toggle('on', mode === 'plex');
+  cal.classList.toggle('on', mode === 'calendar');
+  document.getElementById('schedInfo').textContent = mode === 'plex'
+    ? 'Due a set number of days after completion, like Plex: week 7 · month 28 · 3 months 84 · 6 months 168 · year 336.'
+    : 'Due on the same day of the month (or same date next year) as the last completion.';
 }
 function calcNextDueCustom(fromDateStr, freq) { return calcNextDue(fromDateStr, freq); }
 
@@ -1135,7 +1179,8 @@ function updatePMPreview() {
   const type = document.getElementById('pmFreqType').value;
   const amount = document.getElementById('pmAmount').value || 1;
   const labels = {d:'days',w:'weeks',mo:'months',y:'years'};
-  const extras = {w:' ('+amount*7+' days)',mo:' ('+amount*28+' days)',y:' ('+amount*336+' days)',d:''};
+  const plex = getScheduleMode() === 'plex';
+  const extras = {w:' ('+amount*7+' days)',mo:plex?' ('+amount*28+' days)':'',y:plex?' ('+amount*336+' days)':'',d:''};
   document.getElementById('pmAmountLabel').textContent = 'How many '+labels[type]+'?';
   document.getElementById('pmPreview').textContent = '→ Repeats every '+amount+' '+labels[type]+(extras[type]||'');
 }
@@ -1237,6 +1282,7 @@ function deleteTask(taskId) {
 
 // ── Manage Panel ─────────────────────────────────────────────
 function renderManagePanel() {
+  renderScheduleMode();
   const machData = getActiveMachineData();
   document.getElementById('manageMachineName').textContent = getActiveMachineName();
 
