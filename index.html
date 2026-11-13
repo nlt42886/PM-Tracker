@@ -166,6 +166,17 @@
   .custom-task-btns { display: flex; gap: 6px; flex-shrink: 0; }
   .btn-edit { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue-dim); font-family: var(--font-display); font-weight: 700; font-size: 0.8rem; padding: 4px 10px; cursor: pointer; }
   .btn-del { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-dim); font-family: var(--font-display); font-weight: 700; font-size: 0.8rem; padding: 4px 10px; cursor: pointer; }
+  .tool-chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.85rem; padding: 3px 8px; margin: 6px 6px 0 0; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+  .tool-chip.picked { background: var(--orange); color: #000; border-color: var(--orange); font-weight: 700; cursor: pointer; }
+  .pin-note { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text); background: var(--blue-dim); border-left: 3px solid var(--blue); padding: 4px 8px; margin-top: 6px; }
+  .nt-btn { font-family: var(--font-display); font-weight: 700; font-size: 0.75rem; letter-spacing: 0.5px; padding: 4px 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-mid); margin: 8px 6px 0 0; cursor: pointer; }
+  .nt-label { font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; color: var(--text-mid); font-size: 0.85rem; margin: 14px 0 6px; text-transform: uppercase; }
+  .size-grid { display: flex; flex-wrap: wrap; }
+  .size-btn { font-family: var(--font-mono); font-size: 0.9rem; padding: 6px 9px; margin: 6px 6px 0 0; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
+  .size-btn.on { background: var(--orange); color: #000; border-color: var(--orange); font-weight: 700; }
+  .seg { display: flex; margin-top: 8px; }
+  .seg button { flex: 1; padding: 8px; border: 1px solid var(--border); background: var(--bg); font-family: var(--font-display); font-weight: 700; color: var(--text-dim); cursor: pointer; }
+  .seg button.on { background: var(--orange-dim); color: var(--text); border-color: var(--orange); }
   .add-pm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 400; align-items: flex-end; justify-content: center; }
   .add-pm-overlay.open { display: flex; }
   .add-pm-sheet { background: var(--surface); border-top: 2px solid var(--orange); width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
@@ -304,19 +315,36 @@
       <button onclick="openAddPMModal(null)" style="width:100%;background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-size:1.1rem;font-weight:700;letter-spacing:1px;padding:11px;cursor:pointer;margin-bottom:12px;">➕ ADD NEW PM TASK</button>
       <div id="allTaskList"></div>
     </div>
-    <!-- Task Notes Section -->
-    <div class="manage-section">
-      <div class="manage-section-title">📝 Task Notes</div>
-      <div style="font-family:var(--font-mono);font-size:0.8rem;color:var(--text-dim);margin-bottom:10px;">Add a permanent note to any task (e.g. "Use Mobil oil only"). Shown on the task card.</div>
-      <div class="form-row">
-        <label>Select Task</label>
-        <select id="noteTaskSelect" class="form-select" onchange="loadTaskNote()"></select>
+  </div>
+</div>
+
+<!-- Pinned Note & Tools Overlay -->
+<div class="add-pm-overlay" id="ntOverlay" onclick="if(event.target===this)closeNotesTools()">
+  <div class="add-pm-sheet">
+    <div class="add-pm-header">
+      <div class="add-pm-title">NOTE &amp; TOOLS</div>
+      <button onclick="closeNotesTools()" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:32px;height:32px;font-size:1.1rem;cursor:pointer;">✕</button>
+    </div>
+    <div class="add-pm-body">
+      <div id="ntTaskName" style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;"></div>
+      <div class="nt-label" id="ntNoteLabel">📌 Pinned Note</div>
+      <textarea id="ntNote" placeholder="e.g. Use Mobil 1 oil only. Check torque spec on manual p.12."></textarea>
+      <div class="nt-label" id="ntToolsLabel">🔧 Tools Required</div>
+      <div id="ntPicked"></div>
+      <div class="form-row" style="margin-top:10px;">
+        <select id="ntToolType" class="form-select" onchange="renderToolSizes()">
+          <option value="Socket">Socket</option>
+          <option value="Allen Wrench">Allen Wrench</option>
+        </select>
       </div>
-      <div class="form-row">
-        <label>Note</label>
-        <textarea id="noteTextarea" placeholder="e.g. Use Mobil 1 oil only. Check torque spec on manual p.12."></textarea>
+      <div class="seg"><button id="ntMetric" class="on" onclick="setToolUnits('metric')">METRIC</button><button id="ntSae" onclick="setToolUnits('sae')">SAE</button></div>
+      <div class="size-grid" id="ntSizes"></div>
+      <div class="nt-label">Other Tool</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="ntOther" maxlength="40" placeholder="e.g. Grease gun, 1 1/8&quot; wrench" onkeydown="if(event.key==='Enter')addOtherTool()">
+        <button onclick="addOtherTool()" style="background:var(--blue-dim);color:var(--blue);border:1px solid var(--blue-dim);font-family:var(--font-display);font-weight:700;padding:0 14px;cursor:pointer;">ADD</button>
       </div>
-      <button onclick="saveTaskNote()" style="width:100%;background:var(--blue);color:white;border:none;font-family:var(--font-display);font-size:1.1rem;font-weight:700;letter-spacing:1px;padding:10px;cursor:pointer;">✓ SAVE NOTE</button>
+      <button onclick="saveNotesTools()" style="width:100%;margin-top:16px;background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-size:1.2rem;font-weight:700;letter-spacing:2px;padding:12px;cursor:pointer;">✓ SAVE</button>
     </div>
   </div>
 </div>
@@ -926,7 +954,7 @@ function renderAll() {
       </div>
       <div style="font-family:var(--font-mono);font-size:0.95rem;margin-top:5px;">${compactDue}</div>`;
     } else {
-      card.innerHTML = `<div class="task-top"><div class="task-name">${esc(task.name)}</div><div class="task-freq">${dueTag}</div></div><div class="task-bottom"><div>${lastCompletedDate ? `<div class="history-count">${lastCompletedDate}</div>` : ''}${lastTech ? `<div class="last-tech">Tech: ${esc(lastTech)}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${taskNote ? `<div class="task-note-badge">📌 ${esc(taskNote)}</div>` : ''}</div>${tagHtml}</div>${ablogOverdue}${ablogSoon}${lastCompletionNotes ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:0.85rem;color:var(--text-mid);"><span style="color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-size:0.75rem;">Notes: </span>${esc(lastCompletionNotes)}</div>` : ''}`;
+      card.innerHTML = `<div class="task-top"><div class="task-name">${esc(task.name)}</div><div class="task-freq">${dueTag}</div></div><div class="task-bottom"><div>${lastCompletedDate ? `<div class="history-count">${lastCompletedDate}</div>` : ''}${lastTech ? `<div class="last-tech">Tech: ${esc(lastTech)}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${taskNote ? `<div class="task-note-badge">📌 ${esc(taskNote)}</div>` : ''}${toolChipsHtml(getTaskTools(task.id))}</div>${tagHtml}</div>${ablogOverdue}${ablogSoon}${lastCompletionNotes ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:0.85rem;color:var(--text-mid);"><span style="color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-size:0.75rem;">Notes: </span>${esc(lastCompletionNotes)}</div>` : ''}`;
     }    card.onclick = () => openModal(task.id);
     taskList.appendChild(card);
   });
@@ -1049,14 +1077,15 @@ function openAddPMModal(taskId) {
   document.getElementById('pmEditType').value = '';
   if (taskId) {
     // Check if it's a built-in task being edited
-    const builtIn = TASKS_DEFAULT.find(t => t.id === taskId);
+    const builtIn = getDefaultTasksForMachine(allData.activeMachine).find(t => String(t.id) === String(taskId));
     if (builtIn) {
       document.getElementById('pmEditType').value = 'builtin';
       document.getElementById('addPMTitle').textContent = 'EDIT BUILT-IN TASK';
       document.getElementById('pmName').value = builtIn.name;
       // Parse built-in freq
       const freqMap = {'1w':['w','1'],'1m':['mo','1'],'2m':['mo','2'],'3m':['mo','3'],'6m':['mo','6'],'1y':['y','1']};
-      const fm = freqMap[builtIn.freq];
+      const cm = String(builtIn.freq).match(/^(\d+)(d|w|mo|y)$/);
+      const fm = freqMap[builtIn.freq] || (cm ? [cm[2], cm[1]] : null);
       if (fm) { document.getElementById('pmFreqType').value = fm[0]; document.getElementById('pmAmount').value = fm[1]; }
     } else {
       const custom = getCustomTasks();
@@ -1096,8 +1125,9 @@ function saveCustomPM() {
 
   if (editType === 'builtin') {
     // Editing a built-in task: store override in custom with same id
-    const builtInId = parseInt(editId);
-    const existingOverride = machData.custom.findIndex(t => t.id === builtInId);
+    const builtInTask = getDefaultTasksForMachine(allData.activeMachine).find(t => String(t.id) === String(editId));
+    const builtInId = builtInTask ? builtInTask.id : editId;
+    const existingOverride = machData.custom.findIndex(t => String(t.id) === String(builtInId));
     const override = { id: builtInId, name, freq, freqLabel: freqCodeToLabel(freq), custom: true, overrideBuiltIn: true };
     if (existingOverride !== -1) {
       machData.custom[existingOverride] = override;
@@ -1122,12 +1152,14 @@ function saveCustomPM() {
 function deleteTask(taskId) {
   const state = getState();
   const machData = getActiveMachineData();
-  const builtIn = TASKS_DEFAULT.find(t => t.id === taskId);
+  const builtIn = getDefaultTasksForMachine(allData.activeMachine).find(t => String(t.id) === String(taskId));
+  if (builtIn) taskId = builtIn.id;
   const taskName = builtIn ? builtIn.name : (machData.custom.find(t => t.id === taskId)?.name || 'this task');
   if (!confirm('Delete "' + taskName + '" and all its history?')) return;
   machData.custom = machData.custom.filter(t => t.id !== taskId);
   delete state[taskId];
   if (getNotes()[taskId]) delete getNotes()[taskId];
+  if (machData.tools && machData.tools[taskId]) delete machData.tools[taskId];
   saveAllData();
   renderAll();
   showToast('Task deleted', 'success');
@@ -1158,30 +1190,40 @@ function renderManagePanel() {
   const allTasks = getAllTasks();
   const tl = document.getElementById('allTaskList');
   // Merge: show built-in tasks (with overrides applied) + pure custom tasks
-  const builtInIds = TASKS_DEFAULT.map(t => t.id);
+  const machineBuiltIns = getDefaultTasksForMachine(allData.activeMachine);
+  const ntRow = (id) => {
+    const note = getTaskNote(id), tools = getTaskTools(id), q = `'${String(id).replace(/[^\w-]/g, '')}'`;
+    return `${note ? `<div class="pin-note">📌 ${esc(note)}</div>` : ''}${toolChipsHtml(tools)}
+      <div><button class="nt-btn" onclick="openNotesTools(${q},'note')">📌 ${note ? 'EDIT NOTE' : 'ADD NOTE'}</button><button class="nt-btn" onclick="openNotesTools(${q},'tools')">🔧 ${tools.length ? 'EDIT TOOLS' : 'ADD TOOLS'}</button></div>`;
+  };
   const overrides = machData.custom.filter(t => t.overrideBuiltIn);
   const overrideMap = {};
   overrides.forEach(o => overrideMap[o.id] = o);
 
   let taskItems = '';
-  TASKS_DEFAULT.forEach(t => {
+  machineBuiltIns.forEach(t => {
     const display = overrideMap[t.id] || t;
     const isOverridden = !!overrideMap[t.id];
-    taskItems += `<div class="custom-task-item">
+    const q = `'${String(t.id).replace(/[^\w-]/g, '')}'`;
+    taskItems += `<div class="custom-task-item" style="display:block;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
       <div class="custom-task-info">
         <div class="custom-task-name">${esc(display.name)}${!isOverridden ? '<span class="builtin-label">BUILT-IN</span>' : '<span class="builtin-label">MODIFIED</span>'}</div>
         <div class="custom-task-freq">Every ${esc(display.freqLabel || t.freqLabel)}</div>
       </div>
       <div class="custom-task-btns">
-        <button class="btn-edit" onclick="openAddPMModal(${t.id})">EDIT</button>
-        <button class="btn-del" onclick="deleteTask(${t.id})">DEL</button>
+        <button class="btn-edit" onclick="openAddPMModal(${q})">EDIT</button>
+        <button class="btn-del" onclick="deleteTask(${q})">DEL</button>
       </div>
+      </div>
+      ${ntRow(t.id)}
     </div>`;
   });
 
   const pureCustom = machData.custom.filter(t => !t.overrideBuiltIn);
   pureCustom.forEach(t => {
-    taskItems += `<div class="custom-task-item">
+    taskItems += `<div class="custom-task-item" style="display:block;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
       <div class="custom-task-info">
         <div class="custom-task-name">${esc(t.name)}<span class="builtin-label">CUSTOM</span></div>
         <div class="custom-task-freq">Every ${esc(t.freqLabel)}</div>
@@ -1190,14 +1232,12 @@ function renderManagePanel() {
         <button class="btn-edit" onclick="openAddPMModal('${t.id}')">EDIT</button>
         <button class="btn-del" onclick="deleteTask('${t.id}')">DEL</button>
       </div>
+      </div>
+      ${ntRow(t.id)}
     </div>`;
   });
   tl.innerHTML = taskItems;
 
-  // Note task select
-  const noteSelect = document.getElementById('noteTaskSelect');
-  noteSelect.innerHTML = getAllTasks().map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
-  loadTaskNote();
 }
 
 // Override getAllTasks to apply built-in overrides per machine
@@ -1212,6 +1252,93 @@ window.getAllTasks = function() {
 };
 // Also make it accessible without window prefix
 function getAllTasks() { return window.getAllTasks(); }
+
+// ── Pinned Notes & Tools ─────────────────────────────────────
+const TOOL_SIZES = {
+  'Socket': {
+    metric: ['6mm','7mm','8mm','9mm','10mm','11mm','12mm','13mm','14mm','15mm','16mm','17mm','18mm','19mm','21mm','22mm','24mm','27mm','30mm','32mm'],
+    sae: ['1/4"','5/16"','11/32"','3/8"','7/16"','1/2"','9/16"','5/8"','11/16"','3/4"','13/16"','7/8"','15/16"','1"','1 1/8"','1 1/4"']
+  },
+  'Allen Wrench': {
+    metric: ['1.5mm','2mm','2.5mm','3mm','4mm','5mm','6mm','8mm','10mm','12mm','14mm'],
+    sae: ['1/16"','5/64"','3/32"','7/64"','1/8"','9/64"','5/32"','3/16"','7/32"','1/4"','5/16"','3/8"','1/2"']
+  }
+};
+let _ntTaskId = null, _ntTools = [], _ntUnits = 'metric';
+
+function getTaskTools(taskId) {
+  const md = getActiveMachineData();
+  return (md.tools && md.tools[taskId]) || [];
+}
+function toolChipsHtml(tools) {
+  return tools.length ? `<div>${tools.map(t => `<span class="tool-chip">🔧 ${esc(t)}</span>`).join('')}</div>` : '';
+}
+function openNotesTools(taskId, focus) {
+  const task = getAllTasks().find(t => String(t.id) === String(taskId));
+  if (!task) return;
+  _ntTaskId = task.id;
+  _ntTools = [...getTaskTools(task.id)];
+  document.getElementById('ntTaskName').textContent = task.name;
+  document.getElementById('ntNote').value = getTaskNote(task.id);
+  document.getElementById('ntOther').value = '';
+  renderPickedTools(); renderToolSizes();
+  document.getElementById('ntOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  if (focus === 'tools') setTimeout(() => document.getElementById('ntToolsLabel').scrollIntoView({ block: 'start' }), 50);
+}
+function closeNotesTools() {
+  document.getElementById('ntOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function setToolUnits(u) {
+  _ntUnits = u;
+  document.getElementById('ntMetric').classList.toggle('on', u === 'metric');
+  document.getElementById('ntSae').classList.toggle('on', u === 'sae');
+  renderToolSizes();
+}
+function renderToolSizes() {
+  const type = document.getElementById('ntToolType').value;
+  document.getElementById('ntSizes').innerHTML = TOOL_SIZES[type][_ntUnits].map((sz, i) => {
+    const name = sz + ' ' + type;
+    return `<button class="size-btn ${_ntTools.includes(name) ? 'on' : ''}" onclick="toggleSize(${i})">${esc(sz)}</button>`;
+  }).join('');
+}
+function renderPickedTools() {
+  const el = document.getElementById('ntPicked');
+  el.innerHTML = _ntTools.length
+    ? _ntTools.map((t, i) => `<span class="tool-chip picked" onclick="removeTool(${i})">${esc(t)} ✕</span>`).join('')
+    : '<div style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text-dim);">No tools added yet. Pick a size below or type one in.</div>';
+}
+function toggleTool(name) {
+  const i = _ntTools.indexOf(name);
+  if (i === -1) _ntTools.push(name); else _ntTools.splice(i, 1);
+  renderPickedTools(); renderToolSizes();
+}
+function toggleSize(i) {
+  const type = document.getElementById('ntToolType').value;
+  toggleTool(TOOL_SIZES[type][_ntUnits][i] + ' ' + type);
+}
+function removeTool(i) { _ntTools.splice(i, 1); renderPickedTools(); renderToolSizes(); }
+function addOtherTool() {
+  const inp = document.getElementById('ntOther');
+  const name = inp.value.trim();
+  if (name && !_ntTools.includes(name)) _ntTools.push(name);
+  inp.value = '';
+  renderPickedTools(); renderToolSizes();
+}
+function saveNotesTools() {
+  const md = getActiveMachineData();
+  const text = document.getElementById('ntNote').value.trim();
+  const notes = getNotes();
+  if (text) notes[_ntTaskId] = text; else delete notes[_ntTaskId];
+  if (!md.tools) md.tools = {};
+  if (_ntTools.length) md.tools[_ntTaskId] = [..._ntTools]; else delete md.tools[_ntTaskId];
+  saveAllData();
+  closeNotesTools();
+  renderAll();
+  showToast('✓ Saved', 'success');
+  autoSave();
+}
 
 // ── Task Notes ───────────────────────────────────────────────
 function loadTaskNote() {
