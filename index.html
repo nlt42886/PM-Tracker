@@ -491,10 +491,38 @@ const TASKS_VTI4 = [
   { id: 'vti4_15', name: "Change Demist Filters",                                 freq: "1y",  freqLabel: "1 Year"   },
 ];
 
+const TASKS_MET2 = [
+  { id: 'met2_1',  name: "Polycold Suction Pressure — 10–25 psi",               freq: "1w", freqLabel: "1 Week"   },
+  { id: 'met2_2',  name: "Polycold Discharge Pressure — 180–220 psi",           freq: "1w", freqLabel: "1 Week"   },
+  { id: 'met2_3',  name: "Color of Oil in Diffusion Pump — Clear",              freq: "1w", freqLabel: "1 Week"   },
+  { id: 'met2_4',  name: "Drain Water from Mech Pumps — No Water Present",      freq: "1w", freqLabel: "1 Week"   },
+  { id: 'met2_5',  name: "Grease High-Vac Shaft Cylinders",                     freq: "1w", freqLabel: "1 Week"   },
+  { id: 'met2_6',  name: "Rebuild/Replace Ion Gauge",                           freq: "1m", freqLabel: "1 Month"  },
+  { id: 'met2_7',  name: "Rebuild/Replace Isolation Valve",                     freq: "1m", freqLabel: "1 Month"  },
+  { id: 'met2_8',  name: "Leak Check for Cracks/Leaks and Repair if Necessary", freq: "1m", freqLabel: "1 Month"  },
+  { id: 'met2_9',  name: "Check Guide Bearings on Top of Carousel — Tighten or Change as Needed", freq: "1m", freqLabel: "1 Month" },
+  { id: 'met2_10', name: "Check Both Bearings on Lower Spindle Bearing Assembly on Bottom of Door — Change as Needed", freq: "1m", freqLabel: "1 Month" },
+  { id: 'met2_11', name: "Check Tensioner for Wear or Damage — Change as Needed", freq: "1m", freqLabel: "1 Month" },
+  { id: 'met2_12', name: "Check Spindle Drive Chains — Not Worn or Loose",      freq: "3m", freqLabel: "3 Months" },
+  { id: 'met2_13', name: "Tighten Door Hinge Bolts — 100 ft-lbs",               freq: "3m", freqLabel: "3 Months" },
+  { id: 'met2_14', name: "Clean and Calibrate Chamber Gauge",                   freq: "3m", freqLabel: "3 Months" },
+  { id: 'met2_15', name: "Clean and Calibrate Foreline Gauge",                  freq: "3m", freqLabel: "3 Months" },
+  { id: 'met2_16', name: "Clean and Calibrate Roughing Line Gauge",             freq: "3m", freqLabel: "3 Months" },
+  { id: 'met2_17', name: "Tighten Power Supply Cables (M. Tech)",               freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_18', name: "Replace Door Seal",                                   freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_19', name: "Replace High Vac Cylinder Seal",                      freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_20', name: "Replace Seal on Poppet Cylinder Shaft",               freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_21', name: "Rebuild Diffusion Pump #1",                           freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_22', name: "Rebuild Diffusion Pump #2",                           freq: "6m", freqLabel: "6 Months" },
+  { id: 'met2_23', name: "Acidize Water Lines for Glow Pockets",                freq: "1y", freqLabel: "1 Year"   },
+  { id: 'met2_24', name: "Check Belt Tension on Mechanical Pumps",              freq: "1y", freqLabel: "1 Year"   },
+];
+
 const MACHINE_TASKS = {
   'mach_default': TASKS_DEFAULT,
   'mach_vti2':    TASKS_VTI2,
   'mach_vti4':    TASKS_VTI4,
+  'mach_met2':    TASKS_MET2,
 };
 
 // ── Multi-Machine Data Layer ─────────────────────────────────
@@ -521,12 +549,14 @@ function migrateOldData() {
       { id: 'mach_default', name: hasOldData ? oldName : 'Mustang' },
       { id: 'mach_vti2',    name: 'VTI 2' },
       { id: 'mach_vti4',    name: 'VTI 4' },
+      { id: 'mach_met2',    name: 'MET 2' },
     ],
     activeMachine: 'mach_default',
     machineData: {
       'mach_default': { state: oldState, notes: oldNotes, custom: oldCustom },
       'mach_vti2':    { state: {}, notes: {}, custom: [] },
       'mach_vti4':    { state: {}, notes: {}, custom: [] },
+      'mach_met2':    { state: {}, notes: {}, custom: [] },
     }
   };
 }
@@ -557,7 +587,7 @@ function getDefaultTasksForMachine(machineId) {
 
 function getAllTasks() { return [...getDefaultTasksForMachine(allData.activeMachine), ...getCustomTasks()]; }
 
-// Ensure VTI 2 and VTI 4 exist for users who already have saved data
+// Ensure VTI 2, VTI 4 and MET 2 exist for users who already have saved data
 function ensureVti4Machine() {
   let changed = false;
   if (!allData.machines.find(m => m.id === 'mach_vti2')) {
@@ -568,6 +598,11 @@ function ensureVti4Machine() {
   if (!allData.machines.find(m => m.id === 'mach_vti4')) {
     allData.machines.push({ id: 'mach_vti4', name: 'VTI 4' });
     allData.machineData['mach_vti4'] = { state: {}, notes: {}, custom: [] };
+    changed = true;
+  }
+  if (!allData.machines.find(m => m.id === 'mach_met2')) {
+    allData.machines.push({ id: 'mach_met2', name: 'MET 2' });
+    allData.machineData['mach_met2'] = { state: {}, notes: {}, custom: [] };
     changed = true;
   }
   if (changed) saveAllData();
@@ -1356,6 +1391,7 @@ async function cloudLoad() {
     } else {
       showToast('No valid data found', 'error'); setSyncStatus('offline', 'NO DATA'); return;
     }
+    ensureVti4Machine();
     saveAllData();
     setSyncStatus('synced', 'LOADED ✓');
     showToast('✓ Data loaded from cloud', 'success');
@@ -1389,7 +1425,7 @@ function importData(event) {
     try {
       const data = JSON.parse(e.target.result);
       if (data.allData) {
-        allData = data.allData; saveAllData();
+        allData = data.allData; ensureVti4Machine(); saveAllData();
         showToast('✓ All machines restored from backup', 'success');
       } else if (data.state) {
         // Legacy single-machine import
