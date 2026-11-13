@@ -901,6 +901,11 @@ function renderAll() {
     const lastCompletedDate = lastEntry ? `Last completed: ${formatDate(lastEntry.date)}` : '';
     const lastCompletionNotes = lastEntry?.notes ? lastEntry.notes : '';
 
+    const dueTag = status === 'pending' ? 'Not done'
+      : diff === 0 ? 'Due today'
+      : diff < 0 ? `${Math.abs(diff)} day${Math.abs(diff)===1?'':'s'} late`
+      : `${diff} day${diff===1?'':'s'}`;
+
     const card = document.createElement('div');
     card.className = `task-card ${status === 'pending' ? 'never-done' : status}`;
 
@@ -921,7 +926,7 @@ function renderAll() {
       </div>
       <div style="font-family:var(--font-mono);font-size:0.95rem;margin-top:5px;">${compactDue}</div>`;
     } else {
-      card.innerHTML = `<div class="task-top"><div class="task-name">${esc(task.name)}</div><div class="task-freq">${esc(task.freqLabel)}</div></div><div class="task-bottom"><div>${lastCompletedDate ? `<div class="history-count">${lastCompletedDate}</div>` : ''}${lastTech ? `<div class="last-tech">Tech: ${esc(lastTech)}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${taskNote ? `<div class="task-note-badge">📌 ${esc(taskNote)}</div>` : ''}</div>${tagHtml}</div>${ablogOverdue}${ablogSoon}${lastCompletionNotes ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:0.85rem;color:var(--text-mid);"><span style="color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-size:0.75rem;">Notes: </span>${esc(lastCompletionNotes)}</div>` : ''}`;
+      card.innerHTML = `<div class="task-top"><div class="task-name">${esc(task.name)}</div><div class="task-freq">${dueTag}</div></div><div class="task-bottom"><div>${lastCompletedDate ? `<div class="history-count">${lastCompletedDate}</div>` : ''}${lastTech ? `<div class="last-tech">Tech: ${esc(lastTech)}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${taskNote ? `<div class="task-note-badge">📌 ${esc(taskNote)}</div>` : ''}</div>${tagHtml}</div>${ablogOverdue}${ablogSoon}${lastCompletionNotes ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:0.85rem;color:var(--text-mid);"><span style="color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-size:0.75rem;">Notes: </span>${esc(lastCompletionNotes)}</div>` : ''}`;
     }    card.onclick = () => openModal(task.id);
     taskList.appendChild(card);
   });
