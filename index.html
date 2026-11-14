@@ -189,6 +189,8 @@
   .freq-divider-tagged { display: flex; justify-content: space-between; align-items: center; }
   .banner-tag { font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0; text-transform: none; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
   .simple-due-box { flex-shrink: 0; font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; border: 2px solid; padding: 8px 12px; text-align: center; white-space: nowrap; min-width: 92px; }
+  .pin-note-label { font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px; font-size: 0.7rem; color: #93c5fd; text-transform: uppercase; margin-bottom: 2px; }
+  body.light-mode .pin-note-label { color: var(--blue); }
   .tools-box { margin-top: 10px; border: 1px solid var(--border); border-left: 3px solid var(--orange); background: var(--surface2); padding: 7px 10px; }
   .tools-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; font-size: 0.85rem; text-transform: uppercase; color: var(--text); }
   .tools-toggle { color: var(--orange); }
@@ -324,7 +326,7 @@
       <div class="complete-form">
         <div class="form-row"><label>Completed On (date)</label><input type="date" id="completionDate"></div>
         <div class="form-row"><label>Technician Name</label><input type="text" id="techName" placeholder="Enter your name"></div>
-        <div class="form-row"><label>Notes (optional)</label><textarea id="completionNotes" placeholder="Any observations, issues, or comments..."></textarea></div>
+        <div class="form-row"><label>Today's notes (optional)</label><textarea id="completionNotes" placeholder="Any observations, issues, or comments..."></textarea></div>
         <div class="next-due-preview" id="nextDuePreview" style="display:none;"></div>
         <button class="btn-complete" onclick="logCompletion()">✓ Mark Complete &amp; Reschedule</button>
       </div>
@@ -1484,8 +1486,8 @@ function renderModalNT() {
   if (!el || currentTaskId == null) return;
   const note = getTaskNote(currentTaskId);
   const q = `'${String(currentTaskId).replace(/[^\w-]/g, '')}'`;
-  el.innerHTML = `${note ? `<div class="pin-note" style="margin-top:10px;">📌 ${esc(note)}</div>` : ''}${toolsBoxHtml(currentTaskId, true)}
-    <div style="display:flex;gap:8px;margin:12px 0 4px;"><button class="modal-nt-btn" onclick="openNotesTools(${q})">📌🔧 NOTE &amp; TOOLS</button><button class="modal-nt-btn" onclick="openAddPMModal(${q})">✎ EDIT TASK</button></div>`;
+  el.innerHTML = `${note ? `<div class="pin-note" style="margin-top:10px;"><div class="pin-note-label">Pinned note</div>📌 ${esc(note)}</div>` : ''}${toolsBoxHtml(currentTaskId, true)}
+    <div style="display:flex;gap:8px;margin:12px 0 4px;"><button class="modal-nt-btn" onclick="openNotesTools(${q})">📌🔧 PINNED NOTE &amp; TOOLS</button><button class="modal-nt-btn" onclick="openAddPMModal(${q})">✎ EDIT TASK</button></div>`;
 }
 function taskModalIsOpen() { return document.getElementById('modalOverlay').classList.contains('open'); }
 function refreshTaskModal() {
