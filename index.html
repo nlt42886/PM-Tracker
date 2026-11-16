@@ -102,7 +102,6 @@
   .tech-filter-bar select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; font-family: var(--font-mono); font-size: 0.85rem; outline: none; flex: 1; }
   .tech-filter-bar select:focus { border-color: var(--orange); }
   .tech-filter-label { font-family: var(--font-mono); font-size: 0.9rem; color: var(--text-dim); white-space: nowrap; }
-  .btn-pdf { background: var(--red); color: white; }
 
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: none; align-items: flex-end; justify-content: center; }
   .modal-overlay.open { display: flex; }
@@ -151,11 +150,6 @@
   .toast.success { border-color: var(--green); color: var(--green); }
   .toast.error { border-color: var(--red); color: var(--red); }
 
-  @media print {
-    body > *:not(#pdfOverlay) { display: none !important; }
-    #pdfOverlay { position: static !important; overflow: visible !important; }
-    #pdfOverlay > div:first-child { display: none !important; }
-  }
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border); }
@@ -328,11 +322,12 @@
     </div>
   </div>
   <div class="data-panel">
-    <div class="data-panel-title">📄 PDF Report</div>
+    <div class="data-panel-title">📊 Spreadsheet Export</div>
+    <div class="seg" style="margin:0 0 10px;"><button id="csvThis" class="on" onclick="setCsvScope('this')">THIS MACHINE</button><button id="csvAll" onclick="setCsvScope('all')">ALL MACHINES</button></div>
     <div class="data-btn-row">
-      <button class="btn-data btn-pdf" onclick="exportPDF()">🖨 Print / Save as PDF</button>
+      <button class="btn-data" style="background:var(--green);color:#000;" onclick="exportCSV()">⬇ Download Spreadsheet (.csv)</button>
     </div>
-    <div class="data-note">Opens a printable completion history report for the current machine.</div>
+    <div class="data-note">Every completion with date, task, frequency, tech and notes. Opens in Excel or Google Sheets.</div>
   </div>
   <div class="data-panel">
     <div class="data-panel-title">☁ Cloud Backup</div>
@@ -340,7 +335,7 @@
       <button class="btn-data btn-cloud-save" onclick="openPinModal('set')">⬆ Save to Cloud</button>
       <button class="btn-data btn-cloud-load" onclick="openPinModal('load')">⬇ Load from Cloud</button>
     </div>
-    <div class="data-note">Set a 4-digit PIN to save your data. Enter that PIN on any device to restore it.</div>
+    <div class="data-note">Set a 6-character PIN (letters and numbers) to save your data. Enter that PIN on any device to restore it.</div>
   </div>
   <div class="data-panel">
     <div class="data-panel-title">📁 Local File Backup</div>
@@ -503,18 +498,6 @@
     <button id="pinModalBtn" style="width:100%;background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-size:1.1rem;font-weight:700;letter-spacing:1px;padding:12px;cursor:pointer;margin-bottom:8px;"></button>
     <button onclick="closePinModal()" style="width:100%;background:none;border:1px solid var(--border);color:var(--text-dim);font-family:var(--font-display);font-size:1rem;font-weight:600;padding:10px;cursor:pointer;">CANCEL</button>
   </div>
-</div>
-
-<!-- PDF Report Overlay -->
-<div id="pdfOverlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:600;overflow-y:auto;">
-  <div style="background:#f97316;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;">
-    <div style="font-family:Arial,sans-serif;font-size:1.1rem;font-weight:bold;color:#000;">PM Completion Report</div>
-    <div style="display:flex;gap:8px;">
-      <button onclick="window.print()" style="background:#000;color:#fff;border:none;padding:8px 14px;font-size:0.95rem;cursor:pointer;font-weight:bold;">🖨 Print</button>
-      <button onclick="closePDFOverlay()" style="background:none;border:2px solid #000;color:#000;width:36px;height:36px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
-    </div>
-  </div>
-  <div id="pdfContent" style="padding:16px;font-family:Arial,sans-serif;color:#111;"></div>
 </div>
 
 <!-- Install Prompt -->
@@ -1806,32 +1789,43 @@ function saveEditComp() {
   autoSave();
 }
 
-// ── PDF Export ────────────────────────────────────────────────
-function exportPDF() {
-  const machineName = getActiveMachineName();
-  const state = getState();
-  let entries = [];
-  getAllTasks().forEach(task => { const ts = state[task.id]; if (ts?.history) ts.history.forEach(h => entries.push({ ...h, taskName: task.name })); });
-  entries.sort((a, b) => b.date.localeCompare(a.date));
-  const rows = entries.map((e, i) => `<tr style="background:${i%2===0?'#fff':'#f9f9f9'}"><td style="padding:10px 8px;border-bottom:1px solid #ddd;vertical-align:top;font-size:0.95rem;">${formatDate(e.date)}</td><td style="padding:10px 8px;border-bottom:1px solid #ddd;vertical-align:top;font-size:0.95rem;">${esc(e.taskName)}</td><td style="padding:10px 8px;border-bottom:1px solid #ddd;vertical-align:top;font-size:0.95rem;">${esc(e.tech)||'—'}</td><td style="padding:10px 8px;border-bottom:1px solid #ddd;vertical-align:top;font-size:0.95rem;">${esc(e.notes)||'—'}</td></tr>`).join('');
-  document.getElementById('pdfContent').innerHTML = `
-    <div style="font-size:1.2rem;font-weight:bold;color:#e06010;margin-bottom:4px;">${esc(machineName)} — PM Report</div>
-    <div style="color:#555;font-size:0.9rem;margin-bottom:16px;">Generated: ${new Date().toLocaleDateString()} &nbsp;|&nbsp; ${entries.length} total completions</div>
-    <table style="width:100%;border-collapse:collapse;">
-      <thead><tr>
-        <th style="background:#f97316;color:#000;padding:10px 8px;text-align:left;font-size:0.9rem;">Date</th>
-        <th style="background:#f97316;color:#000;padding:10px 8px;text-align:left;font-size:0.9rem;">Task</th>
-        <th style="background:#f97316;color:#000;padding:10px 8px;text-align:left;font-size:0.9rem;">Technician</th>
-        <th style="background:#f97316;color:#000;padding:10px 8px;text-align:left;font-size:0.9rem;">Notes</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  document.getElementById('pdfOverlay').style.display = 'block';
-  document.body.style.overflow = 'hidden';
+// ── Spreadsheet (CSV) Export ─────────────────────────────────
+let _csvScope = 'this';
+function setCsvScope(scope) {
+  _csvScope = scope;
+  document.getElementById('csvThis').classList.toggle('on', scope === 'this');
+  document.getElementById('csvAll').classList.toggle('on', scope === 'all');
 }
-function closePDFOverlay() {
-  document.getElementById('pdfOverlay').style.display = 'none';
-  document.body.style.overflow = '';
+function tasksForMachine(machId) {
+  const md = allData.machineData[machId] || { custom: [] };
+  const custom = md.custom || [];
+  const builtIns = MACHINE_TASKS[machId] || TASKS_DEFAULT;
+  return [...builtIns.map(t => custom.find(c => c.overrideBuiltIn && String(c.id) === String(t.id)) || t), ...custom.filter(c => !c.overrideBuiltIn)];
+}
+function csvCell(v) {
+  let s = v == null ? '' : String(v);
+  if (/^[=+@]/.test(s)) s = "'" + s; // stop spreadsheets treating notes as formulas
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportCSV() {
+  const machines = _csvScope === 'all' ? allData.machines : allData.machines.filter(m => m.id === allData.activeMachine);
+  const rows = [];
+  machines.forEach(m => {
+    const state = (allData.machineData[m.id] || {}).state || {};
+    tasksForMachine(m.id).forEach(t => {
+      (state[t.id]?.history || []).forEach(h => rows.push([m.name, t.name, t.freqLabel, h.date, h.tech || '', h.notes || '', calcNextDue(h.date, t.freq)]));
+    });
+  });
+  if (!rows.length) { showToast('No completions to export yet', 'error'); return; }
+  rows.sort((a, b) => b[3].localeCompare(a[3]) || a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
+  const header = ['Machine', 'Task', 'Frequency', 'Completed', 'Tech', 'Notes', 'Next Due'];
+  const csv = '﻿' + [header, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n');
+  const label = _csvScope === 'all' ? 'All-Machines' : getActiveMachineName().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `PM-History-${label}-${today()}.csv`; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('✓ Spreadsheet downloaded (' + rows.length + ' completions)', 'success');
 }
 
 // ── AES-256 Encryption (PIN-based) ───────────────────────────
@@ -2047,7 +2041,7 @@ const APP_VERSION = '2026-11-14.1'; // bumped with each release
 let _updateReady = false, _updateChecking = false;
 function anyEditorOpen() {
   const open = id => { const el = document.getElementById(id); if (!el) return false; return el.classList.contains('open') || el.style.display === 'flex' || el.style.display === 'block'; };
-  return ['modalOverlay', 'addPMOverlay', 'ntOverlay', 'machineModalOverlay', 'pinModalOverlay', 'pdfOverlay', 'editCompOverlay'].some(open);
+  return ['modalOverlay', 'addPMOverlay', 'ntOverlay', 'machineModalOverlay', 'pinModalOverlay', 'editCompOverlay'].some(open);
 }
 async function fetchLatestApp() {
   const res = await fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' });
@@ -2143,8 +2137,8 @@ window.saveTaskNote = saveTaskNote;
 window.openEditComp = openEditComp;
 window.closeEditComp = closeEditComp;
 window.saveEditComp = saveEditComp;
-window.exportPDF = exportPDF;
-window.closePDFOverlay = closePDFOverlay;
+window.exportCSV = exportCSV;
+window.setCsvScope = setCsvScope;
 window.shareApp = shareApp;
 window.checkForUpdate = checkForUpdate;
 window.dismissInstallPrompt = dismissInstallPrompt;
