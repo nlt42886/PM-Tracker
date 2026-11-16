@@ -215,6 +215,14 @@
   .cd-no { background: var(--surface2); color: var(--text-mid); border: 1px solid var(--border); }
   .cd-yes { background: var(--red); color: #fff; border: none; }
   .cd-yes.cd-yes-info { background: var(--orange); color: #000; }
+  .undo-bar { position: fixed; bottom: 80px; left: 16px; right: 16px; max-width: 560px; margin: 0 auto; display: none; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface2); border: 1px solid var(--green); border-left: 4px solid var(--green); padding: 12px 14px 15px; z-index: 900; font-family: var(--font-mono); font-size: 0.9rem; color: var(--text); box-shadow: 0 4px 14px rgba(0,0,0,0.6); overflow: hidden; }
+  .undo-bar.show { display: flex; }
+  .undo-bar b { color: var(--green); }
+  .undo-bar .undo-text span { color: var(--text-dim); }
+  .undo-bar button { flex-shrink: 0; background: var(--orange); color: #000; border: none; font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px; padding: 9px 16px; font-size: 0.95rem; cursor: pointer; }
+  .undo-bar .undo-timer { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--green); transform-origin: left; }
+  .undo-bar.show .undo-timer { animation: undoshrink 8s linear forwards; }
+  @keyframes undoshrink { to { transform: scaleX(0); } }
   .tools-box { margin-top: 10px; border: 1px solid var(--border); border-left: 3px solid var(--orange); background: var(--surface2); padding: 7px 10px; }
   .tools-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; font-size: 0.85rem; text-transform: uppercase; color: var(--text); }
   .tools-toggle { color: var(--orange); }
@@ -293,6 +301,11 @@
 <div class="task-list" id="historyList" style="display:none;"></div>
 
 <div id="dataPanel" style="display:none;">
+  <div id="pinUpgrade" style="display:none;margin:12px;padding:12px 14px;background:var(--yellow-dim);border:1px solid var(--yellow);border-left:4px solid var(--yellow);font-family:var(--font-mono);font-size:0.88rem;color:var(--text);">
+    <div style="font-family:var(--font-display);font-weight:700;letter-spacing:1.5px;color:var(--yellow);margin-bottom:4px;">🔒 UPGRADE YOUR PIN</div>
+    Your cloud backup uses the old 4-digit PIN, which is easy to guess. Switch to a 6-character PIN — your data moves over automatically.
+    <button onclick="openPinModal('set')" style="display:block;width:100%;margin-top:10px;background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-weight:700;letter-spacing:1.5px;padding:10px;cursor:pointer;">SET NEW PIN</button>
+  </div>
   <div class="data-panel">
     <div class="data-panel-title">ℹ About</div>
     <div style="font-family:var(--font-mono);font-size:0.9rem;line-height:1.8;color:var(--text-mid);">
@@ -471,16 +484,16 @@
     <div style="font-family:var(--font-display);font-size:1.4rem;font-weight:700;letter-spacing:1px;color:var(--orange);margin-bottom:8px;" id="pinModalTitle"></div>
     <div style="font-family:var(--font-body);font-size:0.9rem;color:var(--text-mid);margin-bottom:20px;" id="pinModalSubtitle"></div>
     <div style="margin-bottom:12px;">
-      <label style="font-family:var(--font-mono);font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">PIN</label>
-      <input id="pinInput" type="number" placeholder="0000" inputmode="numeric"
-        style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:2rem;font-weight:700;padding:10px;text-align:center;letter-spacing:8px;outline:none;"
-        oninput="if(this.value.length>4)this.value=this.value.slice(0,4)">
+      <label style="font-family:var(--font-mono);font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">PIN (6 LETTERS &amp; NUMBERS)</label>
+      <input id="pinInput" type="text" placeholder="••••••" maxlength="6" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"
+        style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:2rem;font-weight:700;padding:10px;text-align:center;letter-spacing:8px;text-transform:uppercase;outline:none;"
+        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6)">
     </div>
     <div id="pinConfirmRow" style="margin-bottom:12px;display:none;">
       <label style="font-family:var(--font-mono);font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">CONFIRM PIN</label>
-      <input id="pinConfirmInput" type="number" placeholder="0000" inputmode="numeric"
-        style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:2rem;font-weight:700;padding:10px;text-align:center;letter-spacing:8px;outline:none;"
-        oninput="if(this.value.length>4)this.value=this.value.slice(0,4)">
+      <input id="pinConfirmInput" type="text" placeholder="••••••" maxlength="6" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"
+        style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:2rem;font-weight:700;padding:10px;text-align:center;letter-spacing:8px;text-transform:uppercase;outline:none;"
+        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6)">
     </div>
     <div id="pinError" style="font-family:var(--font-mono);font-size:0.85rem;color:var(--red);min-height:20px;margin-bottom:12px;"></div>
     <button id="pinModalBtn" style="width:100%;background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-size:1.1rem;font-weight:700;letter-spacing:1px;padding:12px;cursor:pointer;margin-bottom:8px;"></button>
@@ -769,6 +782,10 @@ function loadDeviceId() {
 }
 let deviceId = loadDeviceId();
 
+// PINs: 6 letters/numbers with at least one of each. Old 4-digit PINs still load and save
+// until the user upgrades.
+function isLegacyPin(pin) { return /^\d{4}$/.test(pin || ''); }
+function isValidPin(pin) { return /^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{6}$/.test(pin || ''); }
 function openPinModal(mode) {
   const overlay = document.getElementById('pinModalOverlay');
   const title = document.getElementById('pinModalTitle');
@@ -776,13 +793,13 @@ function openPinModal(mode) {
   const confirmRow = document.getElementById('pinConfirmRow');
   const btn = document.getElementById('pinModalBtn');
   if (mode === 'set') {
-    title.textContent = 'SET YOUR 4-DIGIT PIN';
-    subtitle.textContent = 'This PIN lets you restore your data on any device. Write it down!';
+    title.textContent = 'SET YOUR 6-CHARACTER PIN';
+    subtitle.innerHTML = 'Use <b style="color:var(--text)">6 letters and numbers</b>, with at least one of each (for example <b style="color:var(--text)">PMT4X9</b>). Write it down — you need it to restore your data on another phone.';
     confirmRow.style.display = 'block';
     btn.textContent = 'SET PIN & SAVE TO CLOUD';
     btn.onclick = () => confirmSetPin();
   } else {
-    title.textContent = 'ENTER YOUR 4-DIGIT PIN';
+    title.textContent = 'ENTER YOUR PIN';
     subtitle.textContent = 'Enter the PIN you set when saving to restore your data.';
     confirmRow.style.display = 'none';
     btn.textContent = 'LOAD FROM CLOUD';
@@ -796,25 +813,37 @@ function openPinModal(mode) {
 function closePinModal() {
   document.getElementById('pinModalOverlay').style.display = 'none';
 }
-function confirmSetPin() {
-  const pin = document.getElementById('pinInput').value.trim();
-  const confirm = document.getElementById('pinConfirmInput').value.trim();
+async function confirmSetPin() {
+  const pin = document.getElementById('pinInput').value.trim().toUpperCase();
+  const confirm = document.getElementById('pinConfirmInput').value.trim().toUpperCase();
   const err = document.getElementById('pinError');
-  if (!/^\d{4}$/.test(pin)) { err.textContent = 'PIN must be exactly 4 digits.'; return; }
+  if (pin.length !== 6) { err.textContent = 'PIN must be exactly 6 characters.'; return; }
+  if (!isValidPin(pin)) { err.textContent = 'Needs at least one letter and one number.'; return; }
   if (pin !== confirm) { err.textContent = 'PINs do not match. Try again.'; return; }
+  const oldPin = deviceId;
   deviceId = pin;
   localStorage.setItem('mustangpm_deviceid', pin);
   closePinModal();
-  cloudSave();
+  renderPinUpgrade();
+  const ok = await cloudSave();
+  // after moving off an old 4-digit PIN, try to remove the old, easy-to-guess copy
+  if (ok && isLegacyPin(oldPin) && _db) {
+    try { await _db.collection('devices').doc(oldPin).delete(); } catch (e) {}
+  }
 }
 function confirmLoadPin() {
-  const pin = document.getElementById('pinInput').value.trim();
+  const pin = document.getElementById('pinInput').value.trim().toUpperCase();
   const err = document.getElementById('pinError');
-  if (!/^\d{4}$/.test(pin)) { err.textContent = 'PIN must be exactly 4 digits.'; return; }
+  if (!isValidPin(pin) && !isLegacyPin(pin)) { err.textContent = 'Enter your 6-character PIN (or your old 4-digit PIN).'; return; }
   deviceId = pin;
   localStorage.setItem('mustangpm_deviceid', pin);
   closePinModal();
+  renderPinUpgrade();
   cloudLoad();
+}
+function renderPinUpgrade() {
+  const el = document.getElementById('pinUpgrade');
+  if (el) el.style.display = isLegacyPin(deviceId) ? 'block' : 'none';
 }
 
 // ── Utilities ────────────────────────────────────────────────
@@ -1040,7 +1069,7 @@ function renderAll() {
   document.getElementById('managePanel').style.display = 'none';
   document.getElementById('techFilterBar').style.display = 'none';
   if (currentTab === 'history') { renderHistory(); return; }
-  if (currentTab === 'data') { document.getElementById('dataPanel').style.display = 'block'; return; }
+  if (currentTab === 'data') { document.getElementById('dataPanel').style.display = 'block'; renderPinUpgrade(); return; }
   if (currentTab === 'manage') { document.getElementById('managePanel').style.display = 'block'; renderManagePanel(); return; }
 
   const state = getState();
@@ -1290,12 +1319,36 @@ function logCompletion() {
   const notes = document.getElementById('completionNotes').value.trim();
   if (!dateVal) { showToast('Please select a completion date', 'error'); return; }
   const nextDue = calcNextDue(dateVal, task.freq);
+  const before = state[currentTaskId] ? JSON.parse(JSON.stringify(state[currentTaskId])) : null;
   if (!state[currentTaskId]) state[currentTaskId] = { nextDue: null, history: [] };
   state[currentTaskId].nextDue = nextDue;
   state[currentTaskId].history.push({ date: dateVal, tech, notes });
   if (tech) localStorage.setItem('lastTechName', tech);
+  const undoInfo = { machine: allData.activeMachine, taskId: currentTaskId, before, name: task.name };
   saveAllData(); closeModal(); renderAll();
-  showToast('✓ Logged! Next due: ' + formatDate(nextDue), 'success');
+  showUndoBar(undoInfo, nextDue);
+  autoSave();
+}
+
+// Undo bar shown for a few seconds after Mark Complete
+let _undoTimer = null, _undoInfo = null;
+function showUndoBar(info, nextDue) {
+  _undoInfo = info;
+  let bar = document.getElementById('undoBar');
+  if (!bar) { bar = document.createElement('div'); bar.id = 'undoBar'; bar.className = 'undo-bar'; document.body.appendChild(bar); }
+  bar.innerHTML = `<div class="undo-text">✓ <b>Logged</b> — ${esc(info.name)}<br><span>Next due ${formatDate(nextDue)}</span></div><button onclick="undoLastCompletion()">UNDO</button><div class="undo-timer"></div>`;
+  bar.classList.remove('show'); void bar.offsetWidth; bar.classList.add('show');
+  clearTimeout(_undoTimer);
+  _undoTimer = setTimeout(hideUndoBar, 8000);
+}
+function hideUndoBar() { const bar = document.getElementById('undoBar'); if (bar) bar.classList.remove('show'); _undoInfo = null; }
+function undoLastCompletion() {
+  const info = _undoInfo; if (!info) return;
+  clearTimeout(_undoTimer); hideUndoBar();
+  const md = allData.machineData[info.machine]; if (!md) return;
+  if (info.before) md.state[info.taskId] = info.before; else delete md.state[info.taskId];
+  saveAllData(); renderAll();
+  showToast('↶ Undone — ' + info.name, 'success');
   autoSave();
 }
 
@@ -1778,13 +1831,21 @@ function closePDFOverlay() {
 }
 
 // ── AES-256 Encryption (PIN-based) ───────────────────────────
+// New PINs: the cloud copy is stored under a scrambled name made from the PIN (so the PIN
+// can't be read from the name) and locked with a key made from the PIN.
+// Old 4-digit PINs keep the old layout so existing backups still open.
+async function cloudDocId(pin) {
+  if (isLegacyPin(pin)) return pin;
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('mustangpm-v2|' + pin));
+  return 'v2_' + [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
 async function getEncryptionKey(pin) {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey']
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: enc.encode('mustangpm-salt-v1'), iterations: 100000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: enc.encode(isLegacyPin(pin) ? 'mustangpm-salt-v1' : 'mustangpm-salt-v2|' + pin), iterations: isLegacyPin(pin) ? 100000 : 250000, hash: 'SHA-256' },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -1843,19 +1904,21 @@ function initFirebase() {
 
 // ── Cloud Sync ───────────────────────────────────────────────
 async function cloudSave() {
-  if (!_firebaseReady) { showToast('Database not ready', 'error'); return; }
+  if (!_firebaseReady) { showToast('Database not ready', 'error'); return false; }
   setSyncStatus('syncing', 'SAVING...');
   try {
     const encrypted = await encryptData(allData, deviceId);
-    await _db.collection('devices').doc(deviceId).set({
+    await _db.collection('devices').doc(await cloudDocId(deviceId)).set({
       payload: encrypted,
       updatedAt: new Date().toISOString()
     });
     setSyncStatus('synced', 'SAVED ✓');
     showToast('✓ Saved to cloud', 'success');
+    return true;
   } catch(e) {
     setSyncStatus('error', 'ERROR');
     showToast('Save failed: ' + e.message, 'error');
+    return false;
   }
 }
 
@@ -1863,8 +1926,8 @@ async function cloudLoad() {
   if (!_firebaseReady) { showToast('Database not ready', 'error'); return; }
   setSyncStatus('syncing', 'LOADING...');
   try {
-    const snap = await _db.collection('devices').doc(deviceId).get();
-    if (!snap.exists) { showToast('No cloud data found for PIN: ' + deviceId, 'error'); setSyncStatus('offline', 'NO DATA'); return; }
+    const snap = await _db.collection('devices').doc(await cloudDocId(deviceId)).get();
+    if (!snap.exists) { showToast('No cloud data found for that PIN', 'error'); setSyncStatus('offline', 'NO DATA'); return; }
     const d = snap.data();
     if (d.payload) {
       // New encrypted format
@@ -1911,10 +1974,10 @@ async function autoSave() {
 
 // ── Export / Import ──────────────────────────────────────────
 function exportData() {
-  const blob = new Blob([JSON.stringify({ deviceId, exportedAt: new Date().toISOString(), allData }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), allData }, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `mustang-pm-backup-${deviceId||'device'}-${today()}.json`; a.click();
+  a.href = url; a.download = `mustang-pm-backup-${today()}.json`; a.click();
   URL.revokeObjectURL(url);
   showToast('✓ Backup file downloaded', 'success');
 }
@@ -2045,6 +2108,7 @@ function dismissInstallPrompt() {
 
 // ── Global Exports ───────────────────────────────────────────
 window.setTab = setTab;
+window.undoLastCompletion = undoLastCompletion;
 window.switchMachine = switchMachine;
 window.openMachineModal = openMachineModal;
 window.closeMachineModal = closeMachineModal;
