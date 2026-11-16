@@ -46,7 +46,10 @@
   .sync-status.error { color: var(--red); border-color: var(--red-dim); background: var(--red-dim); }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
-  .device-bar { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .device-bar { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 8px 12px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+  .device-bar .machine-selector { width: 100%; flex: none; }
+  .device-bar-row { display: flex; align-items: center; gap: 8px; }
+  .device-bar-row .add-pm-btn { flex: 1; font-size: 0.9rem !important; padding: 9px 10px !important; }
   .bar-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 1.2rem; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
   .bar-btn:hover { border-color: var(--orange); color: var(--orange); }
 
@@ -271,11 +274,12 @@
 
 <div class="device-bar">
   <select class="machine-selector" id="machineSelect" onchange="switchMachine()"></select>
-  <button class="bar-btn" onclick="openMachineModal(allData.activeMachine)" title="Rename machine" style="font-size:0.9rem;">✎</button>
-  <button onclick="openAddPMModal()" style="background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-weight:700;font-size:0.8rem;padding:5px 10px;cursor:pointer;white-space:nowrap;">+ ADD PM</button>
-  <button class="bar-btn" id="lightToggleBtn" onclick="toggleLightMode()">☀</button>
-  <button class="bar-btn" id="fontSizeBtn" onclick="cycleFontSize()">𝐀</button>
-  <button class="bar-btn" id="updateBtn" onclick="checkForUpdate()" title="Check for update">↻</button>
+  <div class="device-bar-row">
+    <button class="add-pm-btn" onclick="openAddPMModal()" style="background:var(--orange);color:#000;border:none;font-family:var(--font-display);font-weight:700;font-size:0.8rem;padding:5px 10px;cursor:pointer;white-space:nowrap;">+ ADD PM</button>
+    <button class="bar-btn" id="lightToggleBtn" onclick="toggleLightMode()">☀</button>
+    <button class="bar-btn" id="fontSizeBtn" onclick="cycleFontSize()">𝐀</button>
+    <button class="bar-btn" id="updateBtn" onclick="checkForUpdate()" title="Check for update">↻</button>
+  </div>
 </div>
 
 <div class="tabs">
