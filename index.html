@@ -203,6 +203,18 @@
   .pin-add-btn { width: 100%; margin-top: 6px; background: var(--blue-dim); color: var(--text); border: 1px solid var(--blue); font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; padding: 9px; cursor: pointer; }
   .pin-save-btn { flex: 1; background: var(--orange); color: #000; border: none; font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; padding: 9px; cursor: pointer; }
   .pin-cancel-btn { flex: 1; background: var(--surface); color: var(--text-mid); border: 1px solid var(--border); font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; padding: 9px; cursor: pointer; }
+  .cd-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 800; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .cd { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--red); width: 100%; max-width: 420px; padding: 18px; }
+  .cd.cd-info { border-top-color: var(--orange); }
+  .cd h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px; font-size: 1.25rem; margin-bottom: 10px; text-transform: uppercase; color: var(--text); }
+  .cd-q { font-family: var(--font-body); font-size: 1rem; color: var(--text-mid); margin-bottom: 12px; }
+  .cd-item { font-family: var(--font-mono); font-size: 0.95rem; background: var(--red-dim); border-left: 3px solid var(--red); padding: 8px 10px; color: var(--text); margin-bottom: 16px; word-break: break-word; }
+  .cd-item.cd-item-note { background: var(--blue-dim); border-left-color: var(--blue); }
+  .cd-row { display: flex; gap: 10px; margin-top: 4px; }
+  .cd-row button { flex: 1; padding: 12px; font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px; font-size: 1rem; cursor: pointer; }
+  .cd-no { background: var(--surface2); color: var(--text-mid); border: 1px solid var(--border); }
+  .cd-yes { background: var(--red); color: #fff; border: none; }
+  .cd-yes.cd-yes-info { background: var(--orange); color: #000; }
   .tools-box { margin-top: 10px; border: 1px solid var(--border); border-left: 3px solid var(--orange); background: var(--surface2); padding: 7px 10px; }
   .tools-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; font-size: 0.85rem; text-transform: uppercase; color: var(--text); }
   .tools-toggle { color: var(--orange); }
@@ -867,10 +879,10 @@ function recomputeAllDueDates() {
     });
   });
 }
-function setScheduleMode(mode) {
+async function setScheduleMode(mode) {
   if (mode === getScheduleMode()) return;
   const label = mode === 'plex' ? 'Plex intervals (fixed days)' : 'same day of the month';
-  if (!confirm('Switch due dates to ' + label + '?\n\nEvery task on every machine will be rescheduled from its last completion.')) return;
+  if (!(await appConfirm({ icon: '📅', title: 'Switch due date rules?', html: 'Every task on every machine will be rescheduled from its last completion using <b style="color:var(--text)">' + esc(label) + '</b>.', ok: 'SWITCH', danger: false }))) return;
   allData.scheduleMode = mode;
   recomputeAllDueDates();
   saveAllData();
@@ -1004,10 +1016,10 @@ function saveMachine() {
   autoSave();
 }
 
-function deleteMachine(machId) {
+async function deleteMachine(machId) {
   if (allData.machines.length <= 1) { showToast('Cannot delete the only machine', 'error'); return; }
   const m = allData.machines.find(m => m.id === machId);
-  if (!confirm('Delete "' + (m ? m.name : 'this machine') + '" and all its PM data? This cannot be undone.')) return;
+  if (!(await appConfirm({ icon: '🗑', title: 'Delete machine?', html: 'This removes the machine and all of its PM data. This cannot be undone.', item: m ? m.name : 'this machine', ok: 'DELETE' }))) return;
   allData.machines = allData.machines.filter(m => m.id !== machId);
   delete allData.machineData[machId];
   if (allData.activeMachine === machId) allData.activeMachine = allData.machines[0].id;
@@ -1166,6 +1178,27 @@ function freqBanner(label, count) {
 function getSimpleSort() { try { return localStorage.getItem('mustangpm_simplesort') === 'freq' ? 'freq' : 'urgency'; } catch (e) { return 'urgency'; } }
 function setSimpleSort(mode) { try { localStorage.setItem('mustangpm_simplesort', mode); } catch (e) {} renderAll(); }
 
+// App-styled confirm popup (the phone's own popup always shows the website address)
+function appConfirm({ icon = '', title, html = '', item = '', itemStyle = 'danger', ok = 'OK', danger = true }) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'cd-ov';
+    ov.innerHTML = `<div class="cd ${danger ? '' : 'cd-info'}" role="dialog" aria-modal="true">
+      <h3>${icon ? icon + ' ' : ''}${esc(title)}</h3>
+      ${html ? `<div class="cd-q">${html}</div>` : ''}
+      ${item ? `<div class="cd-item ${itemStyle === 'note' ? 'cd-item-note' : ''}">${esc(item)}</div>` : ''}
+      <div class="cd-row"><button class="cd-no">CANCEL</button><button class="cd-yes ${danger ? '' : 'cd-yes-info'}">${esc(ok)}</button></div></div>`;
+    const done = v => { ov.remove(); document.removeEventListener('keydown', key); resolve(v); };
+    const key = e => { if (e.key === 'Escape') done(false); };
+    ov.addEventListener('click', e => { if (e.target === ov) done(false); });
+    ov.querySelector('.cd-no').onclick = () => done(false);
+    ov.querySelector('.cd-yes').onclick = () => done(true);
+    document.addEventListener('keydown', key);
+    document.body.appendChild(ov);
+    ov.querySelector('.cd-no').focus();
+  });
+}
+
 function renderHistory() {
   const state = getState();
   const hl = document.getElementById('historyList'); hl.style.display = '';
@@ -1255,7 +1288,7 @@ function logCompletion() {
   const dateVal = document.getElementById('completionDate').value;
   const tech = document.getElementById('techName').value.trim();
   const notes = document.getElementById('completionNotes').value.trim();
-  if (!dateVal) { alert('Please select a completion date.'); return; }
+  if (!dateVal) { showToast('Please select a completion date', 'error'); return; }
   const nextDue = calcNextDue(dateVal, task.freq);
   if (!state[currentTaskId]) state[currentTaskId] = { nextDue: null, history: [] };
   state[currentTaskId].nextDue = nextDue;
@@ -1355,13 +1388,13 @@ function saveCustomPM() {
   autoSave();
 }
 
-function deleteTask(taskId) {
+async function deleteTask(taskId) {
   const state = getState();
   const machData = getActiveMachineData();
   const builtIn = getDefaultTasksForMachine(allData.activeMachine).find(t => String(t.id) === String(taskId));
   if (builtIn) taskId = builtIn.id;
   const taskName = builtIn ? builtIn.name : (machData.custom.find(t => t.id === taskId)?.name || 'this task');
-  if (!confirm('Delete "' + taskName + '" and all its history?')) return;
+  if (!(await appConfirm({ icon: '🗑', title: 'Delete task?', html: 'This removes the task and all of its completion history.', item: taskName, ok: 'DELETE' }))) return;
   machData.custom = machData.custom.filter(t => t.id !== taskId);
   delete state[taskId];
   if (getNotes()[taskId]) delete getNotes()[taskId];
@@ -1518,9 +1551,9 @@ function editNote(i) {
   box.focus();
 }
 function cancelNoteEdit() { _ntEditIndex = -1; document.getElementById('ntNote').value = ''; renderNoteList(); }
-function deleteNote(i) {
+async function deleteNote(i) {
   const list = getTaskNotes(_ntTaskId);
-  if (!confirm('Delete this pinned note?\n\n"' + list[i] + '"')) return;
+  if (!(await appConfirm({ icon: '🗑', title: 'Delete pinned note?', item: '📌 ' + list[i], itemStyle: 'note', ok: 'DELETE' }))) return;
   list.splice(i, 1);
   if (_ntEditIndex === i) { _ntEditIndex = -1; document.getElementById('ntNote').value = ''; }
   else if (_ntEditIndex > i) _ntEditIndex--;
