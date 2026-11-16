@@ -191,6 +191,17 @@
   .simple-due-box { flex-shrink: 0; font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; border: 2px solid; padding: 8px 12px; text-align: center; white-space: nowrap; min-width: 92px; }
   .pin-note-label { font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px; font-size: 0.7rem; color: #93c5fd; text-transform: uppercase; margin-bottom: 2px; }
   body.light-mode .pin-note-label { color: var(--blue); }
+  .pin-item + .pin-item { margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(147,197,253,0.2); }
+  .pn { display: flex; align-items: flex-start; gap: 8px; background: var(--blue-dim); border-left: 3px solid var(--blue); padding: 8px 10px; margin-bottom: 6px; font-family: var(--font-mono); font-size: 0.9rem; color: var(--text); }
+  .pn.pn-active { border-left-color: var(--orange); }
+  .pn .pn-text { flex: 1; word-break: break-word; }
+  .pn button { background: var(--surface); border: 1px solid var(--border); color: var(--text-mid); font-family: var(--font-display); font-weight: 700; font-size: 0.85rem; padding: 4px 9px; cursor: pointer; }
+  .pn button.pn-x { color: var(--red); border-color: var(--red-dim); }
+  .pn-editing { font-family: var(--font-mono); font-size: 0.85rem; color: var(--orange); margin-bottom: 4px; }
+  #ntNote.editing { border-color: var(--orange); }
+  .pin-add-btn { width: 100%; margin-top: 6px; background: var(--blue-dim); color: var(--text); border: 1px solid var(--blue); font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; padding: 9px; cursor: pointer; }
+  .pin-save-btn { flex: 1; background: var(--orange); color: #000; border: none; font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; padding: 9px; cursor: pointer; }
+  .pin-cancel-btn { flex: 1; background: var(--surface); color: var(--text-mid); border: 1px solid var(--border); font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; padding: 9px; cursor: pointer; }
   .tools-box { margin-top: 10px; border: 1px solid var(--border); border-left: 3px solid var(--orange); background: var(--surface2); padding: 7px 10px; }
   .tools-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; font-size: 0.85rem; text-transform: uppercase; color: var(--text); }
   .tools-toggle { color: var(--orange); }
@@ -253,8 +264,8 @@
 </div>
 
 <div class="stats-bar">
-  <div class="stat" data-tab="all-sorted" onclick="setTab('all-sorted')"><div class="stat-val orange" id="stat-simple">0</div><div class="stat-label">Simple View</div><div class="stat-sub"></div></div>
-  <div class="stat active" data-tab="all" onclick="setTab('all')"><div class="stat-val green" id="stat-all">0</div><div class="stat-label">All Tasks</div><div class="stat-sub"></div></div>
+  <div class="stat active" data-tab="all-sorted" onclick="setTab('all-sorted')"><div class="stat-val orange" id="stat-simple">0</div><div class="stat-label">Simple View</div><div class="stat-sub"></div></div>
+  <div class="stat" data-tab="all" onclick="setTab('all')"><div class="stat-val green" id="stat-all">0</div><div class="stat-label">All Tasks</div><div class="stat-sub"></div></div>
   <div class="stat" data-tab="due-soon" onclick="setTab('due-soon')"><div class="stat-val yellow" id="stat-soon">0</div><div class="stat-label">Due Soon</div><div class="stat-sub" id="stat-overdue-sub"></div></div>
   <div class="stat" data-tab="history" onclick="setTab('history')"><div class="stat-val" style="color:var(--text-mid);" id="stat-history">0</div><div class="stat-label">History</div><div class="stat-sub"></div></div>
 </div>
@@ -369,8 +380,15 @@
     </div>
     <div class="add-pm-body">
       <div id="ntTaskName" style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;"></div>
-      <div class="nt-label" id="ntNoteLabel">📌 Pinned Note</div>
-      <textarea id="ntNote" placeholder="e.g. Use Mobil 1 oil only. Check torque spec on manual p.12."></textarea>
+      <div class="nt-label" id="ntNoteLabel">📌 Pinned Notes</div>
+      <div id="ntNoteList"></div>
+      <div id="ntEditingTag" class="pn-editing" style="display:none;">✎ Editing a note…</div>
+      <textarea id="ntNote" placeholder="Type a new pinned note… e.g. Use Mobil 1 oil only."></textarea>
+      <button id="ntPinBtn" class="pin-add-btn" onclick="pinNoteFromBox()">＋ PIN THIS NOTE</button>
+      <div id="ntEditBtns" style="display:none;gap:8px;margin-top:6px;">
+        <button class="pin-save-btn" onclick="pinNoteFromBox()">✓ SAVE CHANGES</button>
+        <button class="pin-cancel-btn" onclick="cancelNoteEdit()">CANCEL</button>
+      </div>
       <div class="nt-label" id="ntToolsLabel">🔧 Tools Required</div>
       <div id="ntPicked"></div>
       <div class="form-row" style="margin-top:10px;">
@@ -729,7 +747,7 @@ function ensureVti4Machine() {
 }
 ensureVti4Machine();
 
-let currentTab = 'all';
+let currentTab = 'all-sorted';
 let currentTaskId = null;
 
 // ── Device ID ────────────────────────────────────────────────
@@ -906,10 +924,28 @@ function getBuiltInNote(taskId) {
   const t = getDefaultTasksForMachine(allData.activeMachine).find(t => String(t.id) === String(taskId));
   return (t && t.note) || '';
 }
-// A note the user saved (even an empty one, meaning "removed") wins over the built-in note
-function getTaskNote(taskId) {
+// Pinned notes are a list per task. What the user saved (even an empty list) wins over the
+// built-in note. Older saved data holds a single string, which counts as a one-note list.
+function getTaskNotes(taskId) {
   const notes = getNotes();
-  return Object.prototype.hasOwnProperty.call(notes, taskId) ? notes[taskId] : getBuiltInNote(taskId);
+  if (!Object.prototype.hasOwnProperty.call(notes, taskId)) { const b = getBuiltInNote(taskId); return b ? [b] : []; }
+  const v = notes[taskId];
+  if (Array.isArray(v)) return v.filter(n => n && String(n).trim());
+  return v && String(v).trim() ? [String(v)] : [];
+}
+function setTaskNotes(taskId, list) {
+  const clean = list.map(n => String(n).trim()).filter(Boolean);
+  const b = getBuiltInNote(taskId);
+  const notes = getNotes();
+  if ((b && clean.length === 1 && clean[0] === b) || (!b && !clean.length)) delete notes[taskId];
+  else notes[taskId] = clean;
+}
+function getTaskNote(taskId) { return getTaskNotes(taskId).join(' · '); }
+function pinnedNotesHtml(taskId, withLabel) {
+  const list = getTaskNotes(taskId);
+  if (!list.length) return '';
+  const label = withLabel ? `<div class="pin-note-label">${list.length > 1 ? 'Pinned notes (' + list.length + ')' : 'Pinned note'}</div>` : '';
+  return `<div class="pin-note">${label}${list.map(n => `<div class="pin-item">📌 ${esc(n)}</div>`).join('')}</div>`;
 }
 
 // ── Machine Selector ─────────────────────────────────────────
@@ -1110,7 +1146,7 @@ function renderAll() {
         </div>
       </div>`;
     } else {
-      card.innerHTML = `<div class="task-top"><div class="task-name">${esc(task.name)}</div><div class="task-freq">${dueTag}</div></div><div class="task-bottom"><div>${lastCompletedDate ? `<div class="history-count">${lastCompletedDate}</div>` : ''}${lastTech ? `<div class="last-tech">Tech: ${esc(lastTech)}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${taskNote ? `<div class="task-note-badge">📌 ${esc(taskNote)}</div>` : ''}</div>${tagHtml}</div>${toolsBoxHtml(task.id, true)}${ablogOverdue}${ablogSoon}${lastCompletionNotes ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:0.85rem;color:var(--text-mid);"><span style="color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-size:0.75rem;">Notes: </span>${esc(lastCompletionNotes)}</div>` : ''}`;
+      card.innerHTML = `<div class="task-top"><div class="task-name">${esc(task.name)}</div><div class="task-freq">${dueTag}</div></div><div class="task-bottom"><div>${lastCompletedDate ? `<div class="history-count">${lastCompletedDate}</div>` : ''}${lastTech ? `<div class="last-tech">Tech: ${esc(lastTech)}</div>` : ''}<div class="task-due ${dueClass}">${dueText}</div>${getTaskNotes(task.id).map(n => `<div class="task-note-badge">📌 ${esc(n)}</div>`).join('')}</div>${tagHtml}</div>${toolsBoxHtml(task.id, true)}${ablogOverdue}${ablogSoon}${lastCompletionNotes ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:0.85rem;color:var(--text-mid);"><span style="color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-size:0.75rem;">Notes: </span>${esc(lastCompletionNotes)}</div>` : ''}`;
     }    card.onclick = () => openModal(task.id);
     taskList.appendChild(card);
   });
@@ -1362,9 +1398,9 @@ function renderManagePanel() {
   // Merge: show built-in tasks (with overrides applied) + pure custom tasks
   const machineBuiltIns = getDefaultTasksForMachine(allData.activeMachine);
   const ntRow = (id) => {
-    const note = getTaskNote(id), tools = getTaskTools(id), q = `'${String(id).replace(/[^\w-]/g, '')}'`;
-    return `${note ? `<div class="pin-note">📌 ${esc(note)}</div>` : ''}${toolChipsHtml(tools)}
-      <div><button class="nt-btn" onclick="openNotesTools(${q},'note')">📌 ${note ? 'EDIT NOTE' : 'ADD NOTE'}</button><button class="nt-btn" onclick="openNotesTools(${q},'tools')">🔧 ${tools.length ? 'EDIT TOOLS' : 'ADD TOOLS'}</button></div>`;
+    const note = getTaskNotes(id).length, tools = getTaskTools(id), q = `'${String(id).replace(/[^\w-]/g, '')}'`;
+    return `${pinnedNotesHtml(id, false)}${toolChipsHtml(tools)}
+      <div><button class="nt-btn" onclick="openNotesTools(${q},'note')">📌 ${note ? 'EDIT NOTES' : 'ADD NOTE'}</button><button class="nt-btn" onclick="openNotesTools(${q},'tools')">🔧 ${tools.length ? 'EDIT TOOLS' : 'ADD TOOLS'}</button></div>`;
   };
   const overrides = machData.custom.filter(t => t.overrideBuiltIn);
   const overrideMap = {};
@@ -1438,7 +1474,58 @@ const TOOL_SIZES = {
     sae: ['1/16"','5/64"','3/32"','7/64"','1/8"','9/64"','5/32"','3/16"','7/32"','1/4"','5/16"','3/8"','1/2"']
   }
 };
-let _ntTaskId = null, _ntTools = [], _ntUnits = 'metric';
+let _ntTaskId = null, _ntTools = [], _ntUnits = 'metric', _ntEditIndex = -1;
+function renderNoteList() {
+  const list = getTaskNotes(_ntTaskId);
+  document.getElementById('ntNoteList').innerHTML = list.length
+    ? list.map((n, i) => `<div class="pn ${i === _ntEditIndex ? 'pn-active' : ''}"><div class="pn-text">${esc(n)}</div><button onclick="editNote(${i})" title="Edit">✎</button><button class="pn-x" onclick="deleteNote(${i})" title="Delete">✕</button></div>`).join('')
+    : '<div style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text-dim);margin-bottom:6px;">No pinned notes yet.</div>';
+  const editing = _ntEditIndex >= 0;
+  document.getElementById('ntEditingTag').style.display = editing ? 'block' : 'none';
+  document.getElementById('ntPinBtn').style.display = editing ? 'none' : 'block';
+  document.getElementById('ntEditBtns').style.display = editing ? 'flex' : 'none';
+  document.getElementById('ntNote').classList.toggle('editing', editing);
+  document.getElementById('ntNote').placeholder = editing ? 'Edit the note…' : 'Type a new pinned note… e.g. Use Mobil 1 oil only.';
+}
+function commitNotes(list, msg) {
+  setTaskNotes(_ntTaskId, list);
+  saveAllData(); renderAll(); refreshTaskModal(); autoSave();
+  if (msg) showToast(msg, 'success');
+}
+function pinNoteFromBox() {
+  const box = document.getElementById('ntNote');
+  const text = box.value.trim();
+  const list = getTaskNotes(_ntTaskId);
+  if (_ntEditIndex >= 0) {
+    if (text) list[_ntEditIndex] = text; else list.splice(_ntEditIndex, 1);
+    _ntEditIndex = -1;
+    commitNotes(list, '✓ Note updated');
+  } else {
+    if (!text) { showToast('Type a note first', 'error'); return; }
+    list.push(text);
+    commitNotes(list, '✓ Pinned — add another or tap Save');
+  }
+  box.value = '';
+  renderNoteList();
+  box.focus();
+}
+function editNote(i) {
+  _ntEditIndex = i;
+  const box = document.getElementById('ntNote');
+  box.value = getTaskNotes(_ntTaskId)[i] || '';
+  renderNoteList();
+  box.focus();
+}
+function cancelNoteEdit() { _ntEditIndex = -1; document.getElementById('ntNote').value = ''; renderNoteList(); }
+function deleteNote(i) {
+  const list = getTaskNotes(_ntTaskId);
+  if (!confirm('Delete this pinned note?\n\n"' + list[i] + '"')) return;
+  list.splice(i, 1);
+  if (_ntEditIndex === i) { _ntEditIndex = -1; document.getElementById('ntNote').value = ''; }
+  else if (_ntEditIndex > i) _ntEditIndex--;
+  commitNotes(list, '✓ Note deleted');
+  renderNoteList();
+}
 
 function getTaskTools(taskId) {
   const md = getActiveMachineData();
@@ -1484,10 +1571,9 @@ function toggleToolsBox(ev, key) {
 function renderModalNT() {
   const el = document.getElementById('modalNT');
   if (!el || currentTaskId == null) return;
-  const note = getTaskNote(currentTaskId);
   const q = `'${String(currentTaskId).replace(/[^\w-]/g, '')}'`;
-  el.innerHTML = `${note ? `<div class="pin-note" style="margin-top:10px;"><div class="pin-note-label">Pinned note</div>📌 ${esc(note)}</div>` : ''}${toolsBoxHtml(currentTaskId, true)}
-    <div style="display:flex;gap:8px;margin:12px 0 4px;"><button class="modal-nt-btn" onclick="openNotesTools(${q})">📌🔧 PINNED NOTE &amp; TOOLS</button><button class="modal-nt-btn" onclick="openAddPMModal(${q})">✎ EDIT TASK</button></div>`;
+  el.innerHTML = `<div style="margin-top:10px;">${pinnedNotesHtml(currentTaskId, true)}</div>${toolsBoxHtml(currentTaskId, true)}
+    <div style="display:flex;gap:8px;margin:12px 0 4px;"><button class="modal-nt-btn" onclick="openNotesTools(${q})">📌🔧 PINNED NOTES &amp; TOOLS</button><button class="modal-nt-btn" onclick="openAddPMModal(${q})">✎ EDIT TASK</button></div>`;
 }
 function taskModalIsOpen() { return document.getElementById('modalOverlay').classList.contains('open'); }
 function refreshTaskModal() {
@@ -1506,7 +1592,9 @@ function openNotesTools(taskId, focus) {
   _ntTaskId = task.id;
   _ntTools = [...getTaskTools(task.id)];
   document.getElementById('ntTaskName').textContent = task.name;
-  document.getElementById('ntNote').value = getTaskNote(task.id);
+  _ntEditIndex = -1;
+  document.getElementById('ntNote').value = '';
+  renderNoteList();
   document.getElementById('ntOther').value = '';
   renderPickedTools(); renderToolSizes();
   document.getElementById('ntOverlay').classList.add('open');
@@ -1555,10 +1643,14 @@ function addOtherTool() {
 }
 function saveNotesTools() {
   const md = getActiveMachineData();
+  // anything still typed in the box gets pinned too, so it isn't lost
   const text = document.getElementById('ntNote').value.trim();
-  const notes = getNotes();
-  if (text === getBuiltInNote(_ntTaskId)) delete notes[_ntTaskId];
-  else notes[_ntTaskId] = text;
+  if (text) {
+    const list = getTaskNotes(_ntTaskId);
+    if (_ntEditIndex >= 0) list[_ntEditIndex] = text; else list.push(text);
+    setTaskNotes(_ntTaskId, list);
+  }
+  _ntEditIndex = -1;
   if (!md.tools) md.tools = {};
   if (_ntTools.length) md.tools[_ntTaskId] = [..._ntTools]; else delete md.tools[_ntTaskId];
   saveAllData();
