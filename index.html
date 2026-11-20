@@ -755,6 +755,15 @@ function ensureVti4Machine() {
     allData.scheduleRules = 2;
     changed = true;
   }
+  // One-time restore: bring Mustang back for anyone who had deleted it (they can delete it again afterwards)
+  if (!allData.mustangRestored) {
+    if (!allData.machines.find(m => m.id === 'mach_default')) {
+      allData.machines.unshift({ id: 'mach_default', name: 'Mustang' });
+      allData.machineData['mach_default'] = { state: {}, notes: {}, custom: [] };
+    }
+    allData.mustangRestored = true;
+    changed = true;
+  }
   if (!allData.machines.find(m => m.id === allData.activeMachine)) { allData.activeMachine = allData.machines[0].id; changed = true; }
   if (changed) saveAllData();
 }

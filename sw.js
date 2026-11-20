@@ -1,4 +1,4 @@
-const CACHE = 'mustang-pm-v7';
+const CACHE = 'mustang-pm-v8';
 const ASSETS = ['/PM-Tracker/','/PM-Tracker/index.html','/PM-Tracker/manifest.json','/PM-Tracker/icon-192.png','/PM-Tracker/icon-512.png'];
 
 self.addEventListener('install', e => {
